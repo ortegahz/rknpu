@@ -3,7 +3,7 @@
 set -e
 
 # for rk1808 aarch64
-GCC_COMPILER=${RK1808_TOOL_CHAIN}/bin/aarch64-linux-gnu
+# GCC_COMPILER=${RK1808_TOOL_CHAIN}/bin/aarch64-linux-gnu
 
 
 # for rk1806 armhf
@@ -11,6 +11,11 @@ GCC_COMPILER=${RK1808_TOOL_CHAIN}/bin/aarch64-linux-gnu
 
 # for rv1109/rv1126 armhf
 # GCC_COMPILER=${RV1109_TOOL_CHAIN}/bin/arm-linux-gnueabihf
+
+# for q31 / q41
+TOOL_CHAIN="/home/manu/softwares/gcc-arm-8.3-2019.03-x86_64-arm-linux-gnueabihf"
+GCC_COMPILER=${TOOL_CHAIN}/bin/arm-linux-gnueabihf
+export LD_LIBRARY_PATH=${TOOL_CHAIN}/lib64:$LD_LIBRARY_PATH
 
 ROOT_PWD=$( cd "$( dirname $0 )" && cd -P "$( dirname "$SOURCE" )" && pwd )
 
@@ -29,5 +34,6 @@ make -j4
 make install
 cd -
 
-cp run_rk180x.sh install/rknn_yolov5_demo/
-cp run_rv1109_rv1126.sh install/rknn_yolov5_demo/
+# cp run_rk180x.sh install/rknn_yolov5_demo/
+# cp run_rv1109_rv1126.sh install/rknn_yolov5_demo/
+cp ./install /home/manu/nfs/tmp -rvf

@@ -20,6 +20,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include <cstdio>
+#include <iostream>
 
 #include <vector>
 
@@ -38,12 +40,114 @@
 #include "rga_func.h"
 #include "rknn_api.h"
 
-#define PERF_WITH_POST 1
+#define PERF_WITH_POST 0
 
 using namespace cimg_library;
 /*-------------------------------------------
                   Functions
 -------------------------------------------*/
+
+void __f32_to_f16(uint16_t* f16, float* f32, int num)
+{
+    float* src = f32;
+    uint16_t* dst = f16;
+    int i = 0;
+
+    for (; i < num; i++) {
+        float in = *src;
+
+        uint32_t fp32 = *((uint32_t *) &in);
+        uint32_t t1 = (fp32 & 0x80000000u) >> 16;  /* sign bit. */
+        uint32_t t2 = (fp32 & 0x7F800000u) >> 13;  /* Exponent bits */
+        uint32_t t3 = (fp32 & 0x007FE000u) >> 13;  /* Mantissa bits, no rounding */
+        uint32_t fp16 = 0u;
+
+        if( t2 >= 0x023c00u )
+        {
+            fp16 = t1 | 0x7BFF;     /* Don't round to infinity. */
+        }
+        else if( t2 <= 0x01c000u )
+        {
+            fp16 = t1;
+        }
+        else
+        {
+            t2 -= 0x01c000u;
+            fp16 = t1 | t2 | t3;
+        }
+
+        *dst = (uint16_t) fp16;
+
+        src ++;
+        dst ++;
+    }
+}
+
+void __f16_to_f32(float* f32, uint16_t* f16, int num)
+{
+    uint16_t* src = f16;
+    float* dst = f32;
+    int i = 0;
+
+    for (; i < num; i++) {
+        uint16_t in = *src;
+
+        int32_t t1;
+        int32_t t2;
+        int32_t t3;
+        float out;
+
+        t1 = in & 0x7fff;         // Non-sign bits
+        t2 = in & 0x8000;         // Sign bit
+        t3 = in & 0x7c00;         // Exponent
+
+        t1 <<= 13;                // Align mantissa on MSB
+        t2 <<= 16;                // Shift sign bit into position
+
+        t1 += 0x38000000;         // Adjust bias
+
+        t1 = (t3 == 0 ? 0 : t1);  // Denormals-as-zero
+
+        t1 |= t2;                 // Re-insert sign bit
+
+        *((uint32_t*)&out) = t1;
+
+        *dst = out;
+
+        src ++;
+        dst ++;
+    }
+}
+
+// float __f16_to_f32_s(uint16_t f16)
+// {
+//   uint16_t in = f16;
+
+//   int32_t t1;
+//   int32_t t2;
+//   int32_t t3;
+//   uint32_t t4;
+//   float out;
+
+//   t1 = in & 0x7fff;         // Non-sign bits
+//   t2 = in & 0x8000;         // Sign bit
+//   t3 = in & 0x7c00;         // Exponent
+
+//   t1 <<= 13;                // Align mantissa on MSB
+//   t2 <<= 16;                // Shift sign bit into position
+
+//   t1 += 0x38000000;         // Adjust bias
+
+//   t1 = (t3 == 0 ? 0 : t1);  // Denormals-as-zero
+
+//   t1 |= t2;                 // Re-insert sign bit
+
+//   *((uint32_t*)&out) = t1;
+
+//   return out;
+
+// }
+
 
 inline const char* get_type_string(rknn_tensor_type type)
 {
@@ -282,13 +386,15 @@ int main(int argc, char** argv)
     output_attrs[i].index = i;
     ret                   = rknn_query(ctx, RKNN_QUERY_OUTPUT_ATTR, &(output_attrs[i]), sizeof(rknn_tensor_attr));
     dump_tensor_attr(&(output_attrs[i]));
-    if (output_attrs[i].qnt_type != RKNN_TENSOR_QNT_AFFINE_ASYMMETRIC || output_attrs[i].type != RKNN_TENSOR_UINT8) {
-      fprintf(stderr,
-              "The Demo required for a Affine asymmetric u8 quantized rknn model, but output quant type is %s, output "
-              "data type is %s\n",
-              get_qnt_type_string(output_attrs[i].qnt_type), get_type_string(output_attrs[i].type));
-      return -1;
-    }
+    printf("output_attrs[%d].type --> %d \n", i, output_attrs[i].type);
+
+    // if (output_attrs[i].qnt_type != RKNN_TENSOR_QNT_AFFINE_ASYMMETRIC || output_attrs[i].type != RKNN_TENSOR_UINT8) {
+    //   fprintf(stderr,
+    //           "The Demo required for a Affine asymmetric u8 quantized rknn model, but output quant type is %s, output "
+    //           "data type is %s\n",
+    //           get_qnt_type_string(output_attrs[i].qnt_type), get_type_string(output_attrs[i].type));
+    //   return -1;
+    // }
   }
 
   int channel = 3;
@@ -357,8 +463,45 @@ int main(int argc, char** argv)
     out_scales.push_back(output_attrs[i].scale);
     out_zps.push_back(output_attrs[i].zp);
   }
-  post_process((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, height, width,
-               box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
+
+  // // save float outputs for debugging
+  // for (int i = 0; i < io_num.n_output; ++i) {
+  //   char path[128];
+  //   sprintf(path, "./rknn_output_real_%d.txt", i);
+  //   FILE* fp = fopen (path, "w");
+  //   uint8_t* output = (uint8_t*) outputs[i].buf;
+  //   float out_scale = output_attrs[i].scale;
+  //   uint32_t out_zp = output_attrs[i].zp;
+  //   uint32_t n_elems = output_attrs[i].n_elems;
+  //   printf("output idx %d n_elems --> %d \n", i, n_elems);
+  //   for (int j = 0; j < n_elems; j++)
+  //   {
+  //     float value = deqnt_affine_to_f32(output[j], out_zp, out_scale);
+  //     fprintf(fp, "%f\n", value);
+  //   }
+  //   fclose(fp);
+  // }
+
+  // // save float outputs for debugging
+  // for (int i = 0; i < io_num.n_output; ++i) {
+  //   char path[128];
+  //   sprintf(path, "./rknn_output_real_nq_%d.txt", i);
+  //   FILE* fp = fopen (path, "w");
+  //   uint16_t* output = (uint16_t*) outputs[i].buf;
+  //   uint32_t n_elems = output_attrs[i].n_elems;
+  //   for (int j = 0; j < n_elems; j++)
+  //   {
+  //     float value = __f16_to_f32_s(output[j]);
+  //     fprintf(fp, "%f\n", value);
+  //   }
+  //   fclose(fp);
+  // }
+  // return 0;
+
+  // post_process((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, height, width,
+  //              box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
+  // post_process_acfree((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, (uint8_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
+  post_process_acfree_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, (uint16_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
 
   // Draw Objects
   char                text[256];
@@ -381,7 +524,7 @@ int main(int argc, char** argv)
   ret = rknn_outputs_release(ctx, io_num.n_output, outputs);
 
   // loop test
-  int test_count = 10;
+  int test_count = 2;
   gettimeofday(&start_time, NULL);
   for (int i = 0; i < test_count; ++i) {
     img_resize_slow(&rga_ctx, drm_buf, img_width, img_height, resize_buf, width, height);
@@ -389,8 +532,9 @@ int main(int argc, char** argv)
     ret = rknn_run(ctx, NULL);
     ret = rknn_outputs_get(ctx, io_num.n_output, outputs, NULL);
 #if PERF_WITH_POST
-    post_process((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, height, width,
-                 box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
+    // post_process((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, height, width,
+    //              box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
+    post_process_acfree((int8_t*)outputs[0].buf, (int8_t*)outputs[1].buf, (int8_t*)outputs[2].buf, (int8_t*)outputs[3].buf, (int8_t*)outputs[4].buf, (int8_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
 #endif
     ret = rknn_outputs_release(ctx, io_num.n_output, outputs);
   }

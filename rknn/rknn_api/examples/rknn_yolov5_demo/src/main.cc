@@ -40,7 +40,7 @@
 #include "rga_func.h"
 #include "rknn_api.h"
 
-#define PERF_WITH_POST 0
+#define PERF_WITH_POST 1
 
 using namespace cimg_library;
 /*-------------------------------------------
@@ -500,12 +500,13 @@ int main(int argc, char** argv)
 
   // post_process((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, height, width,
   //              box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
-  // post_process_acfree((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, (uint8_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
-  post_process_acfree_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, (uint16_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
+  post_process_acfree((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, (uint8_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
+  // post_process_acfree_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, (uint16_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
 
   // Draw Objects
   char                text[256];
   const unsigned char blue[]  = {0, 0, 255};
+  const unsigned char red[]  = {255, 0, 0};
   const unsigned char white[] = {255, 255, 255};
   for (int i = 0; i < detect_result_group.count; i++) {
     detect_result_t* det_result = &(detect_result_group.results[i]);
@@ -517,14 +518,14 @@ int main(int argc, char** argv)
     int x2 = det_result->box.right;
     int y2 = det_result->box.bottom;
     // draw box
-    img.draw_rectangle(x1, y1, x2, y2, blue, 1, ~0U);
+    img.draw_rectangle(x1, y1, x2, y2, red, 1, ~0U);
     img.draw_text(x1, y1 - 12, text, white);
   }
   img.save("./out.bmp");
   ret = rknn_outputs_release(ctx, io_num.n_output, outputs);
 
   // loop test
-  int test_count = 2;
+  int test_count = 10;
   gettimeofday(&start_time, NULL);
   for (int i = 0; i < test_count; ++i) {
     img_resize_slow(&rga_ctx, drm_buf, img_width, img_height, resize_buf, width, height);
@@ -534,7 +535,7 @@ int main(int argc, char** argv)
 #if PERF_WITH_POST
     // post_process((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, height, width,
     //              box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
-    post_process_acfree((int8_t*)outputs[0].buf, (int8_t*)outputs[1].buf, (int8_t*)outputs[2].buf, (int8_t*)outputs[3].buf, (int8_t*)outputs[4].buf, (int8_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
+  post_process_acfree((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, (uint8_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
 #endif
     ret = rknn_outputs_release(ctx, io_num.n_output, outputs);
   }

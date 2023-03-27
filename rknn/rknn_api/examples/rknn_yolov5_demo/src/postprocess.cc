@@ -390,6 +390,8 @@ int post_process_acfree_f16(uint16_t* input0, uint16_t* input1, uint16_t* input2
   validCount0 = process_acfree_f16(input0, input3, grid_h0, grid_w0, model_in_h, model_in_w, stride0, filterBoxes, objProbs,
                         classId, conf_threshold);
 
+  printf("validCount0 --> %d \n", validCount0);
+
   // stride 16
   int stride1     = 16;
   int grid_h1     = model_in_h / stride1;
@@ -397,6 +399,8 @@ int post_process_acfree_f16(uint16_t* input0, uint16_t* input1, uint16_t* input2
   int validCount1 = 0;
   validCount1 = process_acfree_f16(input1, input4, grid_h1, grid_w1, model_in_h, model_in_w, stride1, filterBoxes, objProbs,
                         classId, conf_threshold);
+  
+  printf("validCount1 --> %d \n", validCount1);
 
   // stride 32
   int stride2     = 32;
@@ -406,7 +410,11 @@ int post_process_acfree_f16(uint16_t* input0, uint16_t* input1, uint16_t* input2
   validCount2 = process_acfree_f16(input2, input5, grid_h2, grid_w2, model_in_h, model_in_w, stride2, filterBoxes, objProbs,
                         classId, conf_threshold);
 
+  printf("validCount2 --> %d \n", validCount2);
+
   int validCount = validCount0 + validCount1 + validCount2;
+
+  printf("validCount --> %d \n", validCount);
   // no object detect
   if (validCount <= 0) {
     return 0;

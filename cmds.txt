@@ -3,7 +3,8 @@ cd /media/manu/kingstop/workspace/rknpu/rknn/rknn_api/examples/rknn_yolov5_demo
 ./build.sh
 
 # run
-busybox mount -t nfs 192.168.1.128:/home/manu/nfs /mnt_manu -o nolock && cd /mnt_manu/tmp/install/rknn_yolov5_demo
+busybox mount -t nfs 192.168.1.82:/home/manu/nfs /mnt_manu -o nolock && cd /mnt_manu/rv1126/install/rknn_yolov5_demo
 
-./rknn_yolov5_demo ./model/rv1109_rv1126/yolov5s.rknn ./model/bus.bmp
-./rknn_yolov5_demo ./model/rv1109_rv1126/acfree.rknn ./model/sylgd_rp.bmp
+./rknn_yolov5_demo ./model/rv1109_rv1126/acfree.rknn ./model/students_lt.bmp
+
+export LD_LIBRARY_PATH=./lib:$LD_LIBRARY_PATH

@@ -215,6 +215,7 @@ static int process_acfree_f16(uint16_t* input_c, uint16_t* input_b, int grid_h, 
 {
   int    validCount = 0;
   int    grid_len   = grid_h * grid_w;
+  float threshold_unsigmoid = unsigmoid(threshold);
   for (int i = 0; i < grid_h; i++) {
     for (int j = 0; j < grid_w; j++) {
           int     offset_c = i * grid_w + j;
@@ -232,7 +233,12 @@ static int process_acfree_f16(uint16_t* input_c, uint16_t* input_b, int grid_h, 
             }
           }
 
-          if (maxClassProbs_float < threshold) continue;
+          // if (i == 9 && j == 46)
+          // {
+          //   printf("[%d %d] maxClassProbs_float --> %f <%d>\n", grid_h, grid_w, maxClassProbs_float, maxClassProbs);
+          // }
+
+          if (maxClassProbs_float < threshold_unsigmoid) continue;
 
           int     offset_b = i * grid_w + j;
           uint16_t* in_ptr_b = input_b + offset_b;
@@ -382,6 +388,8 @@ int post_process_acfree_f16(uint16_t* input0, uint16_t* input1, uint16_t* input2
   std::vector<float> objProbs;
   std::vector<int>   classId;
 
+  printf("conf_threshold --> %f \n", conf_threshold);
+
   // stride 8
   int stride0     = 8;
   int grid_h0     = model_in_h / stride0;
@@ -463,6 +471,8 @@ int post_process_acfree_f16(uint16_t* input0, uint16_t* input1, uint16_t* input2
     last_count++;
   }
   group->count = last_count;
+
+  printf("last_count --> %d \n", last_count);
 
   return 0;
 }

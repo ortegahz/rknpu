@@ -500,8 +500,8 @@ int main(int argc, char** argv)
 
   // post_process((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, height, width,
   //              box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
-  post_process_acfree((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, (uint8_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
-  // post_process_acfree_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, (uint16_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
+  // post_process_acfree((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, (uint8_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
+  post_process_acfree_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, (uint16_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
 
   // Draw Objects
   char                text[256];
@@ -511,8 +511,8 @@ int main(int argc, char** argv)
   for (int i = 0; i < detect_result_group.count; i++) {
     detect_result_t* det_result = &(detect_result_group.results[i]);
     sprintf(text, "%s %.2f", det_result->name, det_result->prop);
-    printf("%s @ (%d %d %d %d) %f\n", det_result->name, det_result->box.left, det_result->box.top,
-           det_result->box.right, det_result->box.bottom, det_result->prop);
+    // printf("%s @ (%d %d %d %d) %f\n", det_result->name, det_result->box.left, det_result->box.top,
+    //        det_result->box.right, det_result->box.bottom, det_result->prop);
     int x1 = det_result->box.left;
     int y1 = det_result->box.top;
     int x2 = det_result->box.right;
@@ -522,10 +522,31 @@ int main(int argc, char** argv)
     img.draw_text(x1, y1 - 12, text, white);
   }
   img.save("./out.bmp");
+
+  // Save Parser Results
+  FILE * fid = fopen("npu_parser_results.txt", "w");
+  assert(fid != NULL);
+  for (int i = detect_result_group.count - 1; i >= 0; i--) {
+    detect_result_t* det_result = &(detect_result_group.results[i]);
+    // printf("%s @ (%d %d %d %d) %f\n", det_result->name, det_result->box.left, det_result->box.top,
+    //        det_result->box.right, det_result->box.bottom, det_result->prop);
+    float x1 = (float) det_result->box.left;
+    float y1 = (float) det_result->box.top;
+    float x2 = (float) det_result->box.right;
+    float y2 = (float) det_result->box.bottom;
+    float xc = (x1 + x2) / 2 / (float) width;
+    float yc = (y1 + y2) / 2 / (float) height;
+    float w = (x2 - x1) / (float) width;
+    float h = (y2 - y1) / (float) height;
+    // TODO: auto class id
+    fprintf(fid, "0, %f, %f,  %f, %f, %f\n", xc, yc, w, h, det_result->prop);
+  }
+  fclose(fid);
+
   ret = rknn_outputs_release(ctx, io_num.n_output, outputs);
 
   // loop test
-  int test_count = 10;
+  int test_count = 1;
   gettimeofday(&start_time, NULL);
   for (int i = 0; i < test_count; ++i) {
     img_resize_slow(&rga_ctx, drm_buf, img_width, img_height, resize_buf, width, height);
@@ -535,7 +556,7 @@ int main(int argc, char** argv)
 #if PERF_WITH_POST
     // post_process((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, height, width,
     //              box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
-  post_process_acfree((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, (uint8_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
+  // post_process_acfree((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, (uint8_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
 #endif
     ret = rknn_outputs_release(ctx, io_num.n_output, outputs);
   }

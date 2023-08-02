@@ -4,10 +4,10 @@
 #include <stdint.h>
 
 #define OBJ_NAME_MAX_SIZE 16
-#define OBJ_NUMB_MAX_SIZE 64
+#define OBJ_NUMB_MAX_SIZE 1024
 #define OBJ_CLASS_NUM     1
-#define NMS_THRESH        0.6
-#define BOX_THRESH        0.6
+#define NMS_THRESH        0.3
+#define BOX_THRESH        0.4
 #define PROP_BOX_SIZE     (5+OBJ_CLASS_NUM)
 
 typedef struct _BOX_RECT

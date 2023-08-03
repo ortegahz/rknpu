@@ -549,7 +549,7 @@ int main(int argc, char** argv)
   int test_count = 50;
   gettimeofday(&start_time, NULL);
   for (int i = 0; i < test_count; ++i) {
-    img_resize_slow(&rga_ctx, drm_buf, img_width, img_height, resize_buf, width, height);
+    // img_resize_slow(&rga_ctx, drm_buf, img_width, img_height, resize_buf, width, height);
     rknn_inputs_set(ctx, io_num.n_input, inputs);
     ret = rknn_run(ctx, NULL);
     ret = rknn_outputs_get(ctx, io_num.n_output, outputs, NULL);

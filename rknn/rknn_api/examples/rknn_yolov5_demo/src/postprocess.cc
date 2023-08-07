@@ -594,6 +594,111 @@ int post_process_acfree_6_f16(uint16_t* input0, uint16_t* input1, uint16_t* inpu
   return 0;
 }
 
+int post_process_acfree_6(uint8_t* input0, uint8_t* input1, uint8_t* input2, uint8_t* input3, uint8_t* input4, uint8_t* input5, uint8_t* input6, uint8_t* input7, int model_in_h, int model_in_w, float conf_threshold,
+                 float nms_threshold, float scale_w, float scale_h, std::vector<uint32_t>& qnt_zps,
+                 std::vector<float>& qnt_scales, detect_result_group_t* group)
+{
+  static int init = -1;
+  if (init == -1) {
+    int ret = 0;
+    ret     = loadLabelName(LABEL_NALE_TXT_PATH, labels);
+    if (ret < 0) {
+      return -1;
+    }
+
+    init = 0;
+  }
+  memset(group, 0, sizeof(detect_result_group_t));
+
+  std::vector<float> filterBoxes;
+  std::vector<float> objProbs;
+  std::vector<int>   classId;
+
+  // stride 8
+  int stride0     = 8;
+  int grid_h0     = model_in_h / stride0;
+  int grid_w0     = model_in_w / stride0;
+  int validCount0 = 0;
+  validCount0 = process_acfree(input0, input4, grid_h0, grid_w0, model_in_h, model_in_w, stride0, filterBoxes, objProbs,
+                        classId, conf_threshold, qnt_zps[0], qnt_scales[0], qnt_zps[4], qnt_scales[4]);
+
+  // stride 16
+  int stride1     = 16;
+  int grid_h1     = model_in_h / stride1;
+  int grid_w1     = model_in_w / stride1;
+  int validCount1 = 0;
+  validCount1 = process_acfree(input1, input5, grid_h1, grid_w1, model_in_h, model_in_w, stride1, filterBoxes, objProbs,
+                        classId, conf_threshold, qnt_zps[1], qnt_scales[1], qnt_zps[5], qnt_scales[5]);
+
+  // stride 32
+  int stride2     = 32;
+  int grid_h2     = model_in_h / stride2;
+  int grid_w2     = model_in_w / stride2;
+  int validCount2 = 0;
+  validCount2 = process_acfree(input2, input6, grid_h2, grid_w2, model_in_h, model_in_w, stride2, filterBoxes, objProbs,
+                        classId, conf_threshold, qnt_zps[2], qnt_scales[2], qnt_zps[6], qnt_scales[6]);
+
+  // stride 64
+  int stride3     = 64;
+  int grid_h3     = model_in_h / stride3;
+  int grid_w3     = model_in_w / stride3;
+  int validCount3 = 0;
+  validCount3 = process_acfree(input3, input7, grid_h3, grid_w3, model_in_h, model_in_w, stride3, filterBoxes, objProbs,
+                        classId, conf_threshold, qnt_zps[3], qnt_scales[3], qnt_zps[7], qnt_scales[7]);
+
+  int validCount = validCount0 + validCount1 + validCount2 + validCount3;
+  // no object detect
+  if (validCount <= 0) {
+    return 0;
+  }
+
+  std::vector<int> indexArray;
+  for (int i = 0; i < validCount; ++i) {
+    indexArray.push_back(i);
+  }
+
+  quick_sort_indice_inverse(objProbs, 0, validCount - 1, indexArray);
+
+  std::set<int> class_set(std::begin(classId), std::end(classId));
+
+  for (auto c : class_set) {
+    nms(validCount, filterBoxes, classId, indexArray, c, nms_threshold);
+  }
+
+  int last_count = 0;
+  group->count   = 0;
+  /* box valid detect target */
+  for (int i = 0; i < validCount; ++i) {
+    if (indexArray[i] == -1 || last_count >= OBJ_NUMB_MAX_SIZE) {
+      continue;
+    }
+    int n = indexArray[i];
+
+    float x1       = filterBoxes[n * 4 + 0];
+    float y1       = filterBoxes[n * 4 + 1];
+    float x2       = x1 + filterBoxes[n * 4 + 2];
+    float y2       = y1 + filterBoxes[n * 4 + 3];
+    int   id       = classId[n];
+    float obj_conf = objProbs[i];
+
+    group->results[last_count].box.left   = (int)(clamp(x1, 0, model_in_w) / scale_w);
+    group->results[last_count].box.top    = (int)(clamp(y1, 0, model_in_h) / scale_h);
+    group->results[last_count].box.right  = (int)(clamp(x2, 0, model_in_w) / scale_w);
+    group->results[last_count].box.bottom = (int)(clamp(y2, 0, model_in_h) / scale_h);
+    group->results[last_count].prop       = obj_conf;
+    char* label                           = labels[id];
+    strncpy(group->results[last_count].name, label, OBJ_NAME_MAX_SIZE);
+
+    // printf("result %2d: (%4d, %4d, %4d, %4d), %s\n", i, group->results[last_count].box.left,
+    // group->results[last_count].box.top,
+    //        group->results[last_count].box.right, group->results[last_count].box.bottom, label);
+    last_count++;
+  }
+  group->count = last_count;
+
+  return 0;
+}
+
 int post_process_acfree(uint8_t* input0, uint8_t* input1, uint8_t* input2, uint8_t* input3, uint8_t* input4, uint8_t* input5, int model_in_h, int model_in_w, float conf_threshold,
                  float nms_threshold, float scale_w, float scale_h, std::vector<uint32_t>& qnt_zps,
                  std::vector<float>& qnt_scales, detect_result_group_t* group)

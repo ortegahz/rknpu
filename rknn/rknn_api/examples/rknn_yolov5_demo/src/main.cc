@@ -504,7 +504,8 @@ int main(int argc, char** argv)
   //              box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
   // post_process_acfree((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, (uint8_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
   // post_process_acfree_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, (uint16_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
-  post_process_acfree_6_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, (uint16_t*)outputs[5].buf, (uint16_t*)outputs[6].buf, (uint16_t*)outputs[7].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
+  // post_process_acfree_6_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, (uint16_t*)outputs[5].buf, (uint16_t*)outputs[6].buf, (uint16_t*)outputs[7].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
+  post_process_acfree_6((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, (uint8_t*)outputs[5].buf, (uint8_t*)outputs[6].buf, (uint8_t*)outputs[7].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
 
   // Draw Objects
   char                text[256];

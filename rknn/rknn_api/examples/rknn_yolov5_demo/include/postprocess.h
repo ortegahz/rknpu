@@ -32,6 +32,8 @@ typedef struct _detect_result_group_t
     detect_result_t results[OBJ_NUMB_MAX_SIZE];
 } detect_result_group_t;
 
+int post_process_acfree_6_f16(uint16_t* input0, uint16_t* input1, uint16_t* input2, uint16_t* input3, uint16_t* input4, uint16_t* input5, uint16_t* input6, uint16_t* input7, int model_in_h, int model_in_w, float conf_threshold, float nms_threshold, float scale_w, float scale_h, detect_result_group_t* group);
+
 int post_process_acfree_f16(uint16_t* input0, uint16_t* input1, uint16_t* input2, uint16_t* input3, uint16_t* input4, uint16_t* input5, int model_in_h, int model_in_w, float conf_threshold, float nms_threshold, float scale_w, float scale_h, detect_result_group_t* group);
 
 int post_process_acfree(uint8_t* input0, uint8_t* input1, uint8_t* input2, uint8_t* input3, uint8_t* input4, uint8_t* input5, int model_in_h, int model_in_w, float conf_threshold,

@@ -3,9 +3,12 @@ cd /media/manu/kingstop/workspace/rknpu/rknn/rknn_api/examples/rknn_yolov5_demo
 ./build.sh
 
 # run
+ssh root@192.168.1.66
 busybox mount -t nfs 192.168.1.82:/home/manu/nfs /mnt_manu -o nolock && cd /mnt_manu/rv1126/install/rknn_yolov5_demo
 
 ./rknn_yolov5_demo ./model/rv1109_rv1126/acfree.rknn ./model/students_lt.bmp
+./rknn_yolov5_demo ./model/rv1109_rv1126/acfree.rknn ./model/sylgd_rp.bmp
 
 # debug
 export NN_LAYER_DUMP=0
+export NN_LAYER_DUMP=1

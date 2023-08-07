@@ -40,7 +40,8 @@
 #include "rga_func.h"
 #include "rknn_api.h"
 
-#define PERF_WITH_POST 1
+#define PERF_WITH_POST 0
+#define SAVE_F16_OUTPUTS 0
 
 using namespace cimg_library;
 /*-------------------------------------------
@@ -119,34 +120,34 @@ void __f16_to_f32(float* f32, uint16_t* f16, int num)
     }
 }
 
-// float __f16_to_f32_s(uint16_t f16)
-// {
-//   uint16_t in = f16;
+static float __f16_to_f32_s(uint16_t f16)
+{
+  uint16_t in = f16;
 
-//   int32_t t1;
-//   int32_t t2;
-//   int32_t t3;
-//   uint32_t t4;
-//   float out;
+  int32_t t1;
+  int32_t t2;
+  int32_t t3;
+  uint32_t t4;
+  float out;
 
-//   t1 = in & 0x7fff;         // Non-sign bits
-//   t2 = in & 0x8000;         // Sign bit
-//   t3 = in & 0x7c00;         // Exponent
+  t1 = in & 0x7fff;         // Non-sign bits
+  t2 = in & 0x8000;         // Sign bit
+  t3 = in & 0x7c00;         // Exponent
 
-//   t1 <<= 13;                // Align mantissa on MSB
-//   t2 <<= 16;                // Shift sign bit into position
+  t1 <<= 13;                // Align mantissa on MSB
+  t2 <<= 16;                // Shift sign bit into position
 
-//   t1 += 0x38000000;         // Adjust bias
+  t1 += 0x38000000;         // Adjust bias
 
-//   t1 = (t3 == 0 ? 0 : t1);  // Denormals-as-zero
+  t1 = (t3 == 0 ? 0 : t1);  // Denormals-as-zero
 
-//   t1 |= t2;                 // Re-insert sign bit
+  t1 |= t2;                 // Re-insert sign bit
 
-//   *((uint32_t*)&out) = t1;
+  *((uint32_t*)&out) = t1;
 
-//   return out;
+  return out;
 
-// }
+}
 
 
 inline const char* get_type_string(rknn_tensor_type type)
@@ -332,7 +333,7 @@ int main(int argc, char** argv)
     return -1;
   }
 
-  printf("post process config: box_conf_threshold = %.2f, nms_threshold = %.2f\n", box_conf_threshold, nms_threshold);
+  printf("post process config: box_conf_threshold = %f, nms_threshold = %f\n", box_conf_threshold, nms_threshold);
 
   model_name       = (char*)argv[1];
   char* image_name = argv[2];
@@ -482,26 +483,28 @@ int main(int argc, char** argv)
   //   fclose(fp);
   // }
 
-  // // save float outputs for debugging
-  // for (int i = 0; i < io_num.n_output; ++i) {
-  //   char path[128];
-  //   sprintf(path, "./rknn_output_real_nq_%d.txt", i);
-  //   FILE* fp = fopen (path, "w");
-  //   uint16_t* output = (uint16_t*) outputs[i].buf;
-  //   uint32_t n_elems = output_attrs[i].n_elems;
-  //   for (int j = 0; j < n_elems; j++)
-  //   {
-  //     float value = __f16_to_f32_s(output[j]);
-  //     fprintf(fp, "%f\n", value);
-  //   }
-  //   fclose(fp);
-  // }
-  // return 0;
+#if SAVE_F16_OUTPUTS
+  // save float outputs for debugging
+  for (int i = 0; i < io_num.n_output; ++i) {
+    char path[128];
+    sprintf(path, "./rknn_output_real_nq_%d.txt", i);
+    FILE* fp = fopen (path, "w");
+    uint16_t* output = (uint16_t*) outputs[i].buf;
+    uint32_t n_elems = output_attrs[i].n_elems;
+    for (int j = 0; j < n_elems; j++)
+    {
+      float value = __f16_to_f32_s(output[j]);
+      fprintf(fp, "%f\n", value);
+    }
+    fclose(fp);
+  }
+#endif
 
   // post_process((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, height, width,
   //              box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
-  post_process_acfree((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, (uint8_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
+  // post_process_acfree((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, (uint8_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
   // post_process_acfree_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, (uint16_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
+  post_process_acfree_6_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, (uint16_t*)outputs[5].buf, (uint16_t*)outputs[6].buf, (uint16_t*)outputs[7].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
 
   // Draw Objects
   char                text[256];
@@ -546,7 +549,7 @@ int main(int argc, char** argv)
   ret = rknn_outputs_release(ctx, io_num.n_output, outputs);
 
   // loop test
-  int test_count = 50;
+  int test_count = 0;
   gettimeofday(&start_time, NULL);
   for (int i = 0; i < test_count; ++i) {
     // img_resize_slow(&rga_ctx, drm_buf, img_width, img_height, resize_buf, width, height);

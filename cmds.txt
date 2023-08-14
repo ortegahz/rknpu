@@ -8,6 +8,7 @@ busybox mount -t nfs 192.168.1.82:/home/manu/nfs /mnt_manu -o nolock && cd /mnt_
 
 ./rknn_yolov5_demo ./model/rv1109_rv1126/acfree.rknn ./model/students_lt.bmp
 ./rknn_yolov5_demo ./model/rv1109_rv1126/acfree.rknn ./model/sylgd_rp.bmp
+./rknn_yolov5_demo ./model/rv1109_rv1126/player.rknn ./model/player_1280.bmp
 
 # debug
 export NN_LAYER_DUMP=0

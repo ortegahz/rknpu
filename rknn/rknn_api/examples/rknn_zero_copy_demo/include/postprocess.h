@@ -10,6 +10,13 @@
 #define BOX_THRESH        0.4
 #define PROP_BOX_SIZE     (5+OBJ_CLASS_NUM)
 
+typedef struct _POI
+{
+    int x;
+    int y;
+    float conf;
+} POI;
+
 typedef struct _BOX_RECT
 {
     int left;
@@ -23,6 +30,7 @@ typedef struct __detect_result_t
     char name[OBJ_NAME_MAX_SIZE];
     BOX_RECT box;
     float prop;
+    POI poi;
 } detect_result_t;
 
 typedef struct _detect_result_group_t

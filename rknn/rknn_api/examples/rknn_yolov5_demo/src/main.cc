@@ -525,6 +525,15 @@ int main(int argc, char** argv)
     // draw box
     img.draw_rectangle(x1, y1, x2, y2, red, 1, ~0U);
     img.draw_text(x1, y1 - 12, text, white);
+    int xc = (x1 + x2) / 2;
+    int yc = (y1 + y2) / 2;
+    int x = det_result->poi.x;
+    int y = det_result->poi.y;
+    float conf = det_result->poi.conf;
+    // printf("pp_x pp_y pp_c --> %d, %d, %f\n", x, y, conf);
+    sprintf(text, "%.2f", conf);
+    img.draw_line(xc, yc, x, y, blue);
+    img.draw_text(xc, yc, text, blue);
   }
   img.save("./out.bmp");
 
@@ -543,8 +552,11 @@ int main(int argc, char** argv)
     float yc = (y1 + y2) / 2 / (float) height;
     float w = (x2 - x1) / (float) width;
     float h = (y2 - y1) / (float) height;
+    int x = det_result->poi.x;
+    int y = det_result->poi.y;
+    float conf = det_result->poi.conf;
     // TODO: auto class id
-    fprintf(fid, "0, %f, %f,  %f, %f, %f\n", xc, yc, w, h, det_result->prop);
+    fprintf(fid, "0, %f, %f,  %f, %f, %d, %d, %f, %f\n", xc, yc, w, h, x, y, conf, det_result->prop);
   }
   fclose(fid);
 

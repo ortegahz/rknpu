@@ -429,6 +429,116 @@ static int process_acfree(uint8_t* input_c, uint8_t* input_b, int grid_h, int gr
   return validCount;
 }
 
+static int process_player(uint8_t* input_main, uint8_t* input_aux, int grid_h, int grid_w, int height, int width, int stride,
+                   std::vector<float>& boxes, std::vector<float>& objProbs, std::vector<float>& pois, std::vector<int>& classId, float threshold,
+                   uint32_t zp_main, float scale_main, uint32_t zp_aux, float scale_aux)
+{
+  int    validCount = 0;
+  int    grid_len   = grid_h * grid_w;
+  float  thres      = unsigmoid(threshold);
+  uint8_t thres_i8_c   = qnt_f32_to_affine(thres, zp_main, scale_main);
+  for (int i = 0; i < grid_h; i++) {
+    for (int j = 0; j < grid_w; j++) {
+          int     offset_c = 0 * grid_len + i * grid_w + j;
+          uint8_t* in_ptr_c = input_main + offset_c;
+
+          uint8_t maxClassProbs = in_ptr_c[0];
+          int    maxClassId    = 0;
+
+          if (maxClassProbs < thres_i8_c) continue;
+
+          // int     offset_b = i * grid_w + j;
+          int     offset_b = 1 * grid_len + i * grid_w + j;
+          uint8_t* in_ptr_b = input_main + offset_b;
+
+          float   box_l  = deqnt_affine_to_f32(*in_ptr_b, zp_main, scale_main);
+          float   box_t  = deqnt_affine_to_f32(in_ptr_b[grid_len], zp_main, scale_main);
+          float   box_r  = deqnt_affine_to_f32(in_ptr_b[2 * grid_len], zp_main, scale_main);
+          float   box_b  = deqnt_affine_to_f32(in_ptr_b[3 * grid_len], zp_main, scale_main);
+          float box_x1 = j - box_l + 0.5;
+          float box_y1 = i - box_t + 0.5;
+          float box_x2 = j + box_r + 0.5;
+          float box_y2 = i + box_b + 0.5;
+          float box_x = box_x1 * (float)stride;
+          float box_y = box_y1 * (float)stride;
+          float box_w = (box_x2 - box_x1) * (float)stride;
+          float box_h = (box_y2 - box_y1) * (float)stride;
+
+          // printf("maxClassProbs_sigmoid --> %f \n", sigmoid(deqnt_affine_to_f32(maxClassProbs, zp_main, scale_main)) * 1.0);
+
+          int pp_x = -1;
+          int pp_y = -1;
+          float pp_c = unsigmoid(0);
+          uint8_t pp_c_i8   = qnt_f32_to_affine(pp_c, zp_aux, scale_aux);
+          int idx_base = 0;
+          for (int p0 = 0; p0 < NUM_OF_STRDES; p0++)
+          {
+            int stride_pick = strides[p0];
+            int sp = width / stride_pick;
+            int dp = int(box_h) / stride_pick;
+            int ep = int(box_w) / stride_pick;
+            int px = int(box_x) / stride_pick;
+            int py = int(box_y) / stride_pick;
+            // printf("stride_pick --> %d\n", stride_pick);
+            // printf("sp --> %d\n", sp);
+            // printf("idx_base --> %d\n", idx_base);
+            // printf("pp_c --> %f\n", pp_c);
+            // printf("pp_c_i8 --> %d\n", pp_c_i8);
+            for (int p1 = 0; p1 <= dp; p1++)
+            {
+              for (int p2 = 0; p2 <= ep; p2++)
+              {
+                int sx = p2 + px; int sy =  py + p1;
+                int  offset_p = idx_base + sy * sp + sx;
+                // uint16_t* in_ptr_p = poi + offset_p;
+                uint8_t* in_ptr_p = input_aux + offset_p;
+                // float value = __f16_to_f32_s(in_ptr_p[0]);
+                uint8_t value = in_ptr_p[0];
+                // printf("value --> %u\n", value);
+                // printf("value_float --> %f\n", deqnt_affine_to_f32(value, zp_aux, scale_aux));
+                // if (sigmoid(deqnt_affine_to_f32(maxClassProbs, zp_main, scale_main)) * 1.0 > 0.68)
+                // {
+                //   // printf("maxClassProbs_sigmoid --> %f \n", sigmoid(deqnt_affine_to_f32(maxClassProbs, zp_main, scale_main)) * 1.0);
+                //   printf("sx sy -->  (%d) %d %d <%d %d> [%f %f %f %f] \n", stride_pick, sx, sy, sx * stride_pick, sy * stride_pick, box_x, box_y, box_x+box_w, box_y+box_h); 
+                // }
+                if (value > pp_c_i8)
+                {
+                  pp_x = (p2 + px) * stride_pick;
+                  pp_y = (py + p1) * stride_pick;
+                  pp_c_i8 = value;
+                }
+              }
+            }
+            idx_base += width / stride_pick * height / stride_pick;
+          }
+
+          // printf("pp_x pp_y pp_c --> %d, %d, %f\n", pp_x, pp_y, sigmoid(deqnt_affine_to_f32(pp_c_i8, zp_aux, scale_aux)) * 1.0);
+
+          // if (i == 46 && j == 54)
+          // {
+          //   int  offset_p = 0 + 97 * (width / 8) + 111;
+          //   uint8_t* in_ptr_p = input_aux + offset_p;
+          //   float value = deqnt_affine_to_f32(in_ptr_p[0], zp_aux, scale_aux);
+          //   printf("value_sigmoid --> %f\n", sigmoid(value) * 1.0);
+          // }
+
+          // printf("maxClassProbs_sigmoid --> %f \n", sigmoid(deqnt_affine_to_f32(maxClassProbs, zp_main, scale_main)) * 1.0);
+
+          objProbs.push_back(sigmoid(deqnt_affine_to_f32(maxClassProbs, zp_main, scale_main)) * 1.0);
+          classId.push_back(maxClassId);
+          validCount++;
+          boxes.push_back(box_x);
+          boxes.push_back(box_y);
+          boxes.push_back(box_w);
+          boxes.push_back(box_h);
+          pois.push_back(float(pp_x));
+          pois.push_back(float(pp_y));
+          pois.push_back(sigmoid(deqnt_affine_to_f32(pp_c_i8, zp_aux, scale_aux)) * 1.0);
+    }
+  }
+  return validCount;
+}
+
 static int process(uint8_t* input, int* anchor, int grid_h, int grid_w, int height, int width, int stride,
                    std::vector<float>& boxes, std::vector<float>& objProbs, std::vector<int>& classId, float threshold,
                    uint32_t zp, float scale)
@@ -702,6 +812,116 @@ int post_process_acfree_6_f16(uint16_t* input0, uint16_t* input1, uint16_t* inpu
   return 0;
 }
 
+int post_process_player_6(uint8_t* input0, uint8_t* input1, uint8_t* input2, uint8_t* input3, uint8_t* input4, int model_in_h, int model_in_w, float conf_threshold, float nms_threshold, float scale_w, float scale_h, std::vector<uint32_t>& qnt_zps, std::vector<float>& qnt_scales, detect_result_group_t* group)
+{
+  static int init = -1;
+  if (init == -1) {
+    int ret = 0;
+    ret     = loadLabelName(LABEL_NALE_TXT_PATH, labels);
+    if (ret < 0) {
+      return -1;
+    }
+
+    init = 0;
+  }
+  memset(group, 0, sizeof(detect_result_group_t));
+
+  std::vector<float> filterBoxes;
+  std::vector<float> objProbs;
+  std::vector<int>   classId;
+  std::vector<float> pois;
+
+  // stride 8
+  int stride0     = 8;
+  int grid_h0     = model_in_h / stride0;
+  int grid_w0     = model_in_w / stride0;
+  int validCount0 = 0;
+  validCount0 = process_player(input0, input4, grid_h0, grid_w0, model_in_h, model_in_w, stride0, filterBoxes, objProbs, pois,
+                        classId, conf_threshold, qnt_zps[0], qnt_scales[0], qnt_zps[4], qnt_scales[4]);
+
+  // stride 16
+  int stride1     = 16;
+  int grid_h1     = model_in_h / stride1;
+  int grid_w1     = model_in_w / stride1;
+  int validCount1 = 0;
+  validCount1 = process_player(input1, input4, grid_h1, grid_w1, model_in_h, model_in_w, stride1, filterBoxes, objProbs, pois,
+                        classId, conf_threshold, qnt_zps[1], qnt_scales[1], qnt_zps[4], qnt_scales[4]);
+
+  // stride 32
+  int stride2     = 32;
+  int grid_h2     = model_in_h / stride2;
+  int grid_w2     = model_in_w / stride2;
+  int validCount2 = 0;
+  validCount2 = process_player(input2, input4, grid_h2, grid_w2, model_in_h, model_in_w, stride2, filterBoxes, objProbs, pois,
+                        classId, conf_threshold, qnt_zps[2], qnt_scales[2], qnt_zps[4], qnt_scales[4]);
+
+  // stride 64
+  int stride3     = 64;
+  int grid_h3     = model_in_h / stride3;
+  int grid_w3     = model_in_w / stride3;
+  int validCount3 = 0;
+  validCount3 = process_player(input3, input4, grid_h3, grid_w3, model_in_h, model_in_w, stride3, filterBoxes, objProbs, pois,
+                        classId, conf_threshold, qnt_zps[3], qnt_scales[3], qnt_zps[4], qnt_scales[4]);
+
+  int validCount = validCount0 + validCount1 + validCount2 + validCount3;
+  // no object detect
+  if (validCount <= 0) {
+    return 0;
+  }
+
+  std::vector<int> indexArray;
+  for (int i = 0; i < validCount; ++i) {
+    indexArray.push_back(i);
+  }
+
+  quick_sort_indice_inverse(objProbs, 0, validCount - 1, indexArray);
+
+  std::set<int> class_set(std::begin(classId), std::end(classId));
+
+  for (auto c : class_set) {
+    nms(validCount, filterBoxes, classId, indexArray, c, nms_threshold);
+  }
+
+  int last_count = 0;
+  group->count   = 0;
+  /* box valid detect target */
+  for (int i = 0; i < validCount; ++i) {
+    if (indexArray[i] == -1 || last_count >= OBJ_NUMB_MAX_SIZE) {
+      continue;
+    }
+    int n = indexArray[i];
+
+    float x1       = filterBoxes[n * 4 + 0];
+    float y1       = filterBoxes[n * 4 + 1];
+    float x2       = x1 + filterBoxes[n * 4 + 2];
+    float y2       = y1 + filterBoxes[n * 4 + 3];
+    int   id       = classId[n];
+    float obj_conf = objProbs[i];
+    float poi_x       = pois[n * 3 + 0];
+    float poi_y       = pois[n * 3 + 1];
+    float poi_c       = pois[n * 3 + 2];
+
+    group->results[last_count].box.left   = (int)(clamp(x1, 0, model_in_w) / scale_w);
+    group->results[last_count].box.top    = (int)(clamp(y1, 0, model_in_h) / scale_h);
+    group->results[last_count].box.right  = (int)(clamp(x2, 0, model_in_w) / scale_w);
+    group->results[last_count].box.bottom = (int)(clamp(y2, 0, model_in_h) / scale_h);
+    group->results[last_count].prop       = obj_conf;
+    group->results[last_count].poi.x = int(poi_x / scale_w);
+    group->results[last_count].poi.y = int(poi_y / scale_h);
+    group->results[last_count].poi.conf = poi_c;
+    char* label                           = labels[id];
+    strncpy(group->results[last_count].name, label, OBJ_NAME_MAX_SIZE);
+
+    // printf("result %2d: (%4d, %4d, %4d, %4d), %s\n", i, group->results[last_count].box.left,
+    // group->results[last_count].box.top,
+    //        group->results[last_count].box.right, group->results[last_count].box.bottom, label);
+    last_count++;
+  }
+  group->count = last_count;
+
+  return 0;
+}
+
 int post_process_player_6_f16(uint16_t* input0, uint16_t* input1, uint16_t* input2, uint16_t* input3, uint16_t* input4, int model_in_h, int model_in_w, float conf_threshold, float nms_threshold, float scale_w, float scale_h, detect_result_group_t* group)
 {
   static int init = -1;
@@ -862,7 +1082,7 @@ int post_process_acfree_6(uint8_t* input0, uint8_t* input1, uint8_t* input2, uin
   int grid_w1     = model_in_w / stride1;
   int validCount1 = 0;
   validCount1 = process_acfree(input1, input5, grid_h1, grid_w1, model_in_h, model_in_w, stride1, filterBoxes, objProbs,
-                        classId, conf_threshold, qnt_zps[1], qnt_scales[1], qnt_zps[5], qnt_scales[5]);
+                        classId, conf_threshold, qnt_zps[1], qnt_scales[1], qnt_zps[4], qnt_scales[4]);
 
   // stride 32
   int stride2     = 32;
@@ -870,7 +1090,7 @@ int post_process_acfree_6(uint8_t* input0, uint8_t* input1, uint8_t* input2, uin
   int grid_w2     = model_in_w / stride2;
   int validCount2 = 0;
   validCount2 = process_acfree(input2, input6, grid_h2, grid_w2, model_in_h, model_in_w, stride2, filterBoxes, objProbs,
-                        classId, conf_threshold, qnt_zps[2], qnt_scales[2], qnt_zps[6], qnt_scales[6]);
+                        classId, conf_threshold, qnt_zps[2], qnt_scales[2], qnt_zps[4], qnt_scales[4]);
 
   // stride 64
   int stride3     = 64;
@@ -878,7 +1098,7 @@ int post_process_acfree_6(uint8_t* input0, uint8_t* input1, uint8_t* input2, uin
   int grid_w3     = model_in_w / stride3;
   int validCount3 = 0;
   validCount3 = process_acfree(input3, input7, grid_h3, grid_w3, model_in_h, model_in_w, stride3, filterBoxes, objProbs,
-                        classId, conf_threshold, qnt_zps[3], qnt_scales[3], qnt_zps[7], qnt_scales[7]);
+                        classId, conf_threshold, qnt_zps[3], qnt_scales[3], qnt_zps[4], qnt_scales[4]);
 
   int validCount = validCount0 + validCount1 + validCount2 + validCount3;
   // no object detect

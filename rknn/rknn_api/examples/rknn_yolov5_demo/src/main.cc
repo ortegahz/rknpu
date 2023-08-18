@@ -41,6 +41,7 @@
 #include "rknn_api.h"
 
 #define PERF_WITH_POST 0
+#define SAVE_OUTPUTS 1
 #define SAVE_F16_OUTPUTS 0
 
 using namespace cimg_library;
@@ -465,23 +466,25 @@ int main(int argc, char** argv)
     out_zps.push_back(output_attrs[i].zp);
   }
 
-  // // save float outputs for debugging
-  // for (int i = 0; i < io_num.n_output; ++i) {
-  //   char path[128];
-  //   sprintf(path, "./rknn_output_real_%d.txt", i);
-  //   FILE* fp = fopen (path, "w");
-  //   uint8_t* output = (uint8_t*) outputs[i].buf;
-  //   float out_scale = output_attrs[i].scale;
-  //   uint32_t out_zp = output_attrs[i].zp;
-  //   uint32_t n_elems = output_attrs[i].n_elems;
-  //   printf("output idx %d n_elems --> %d \n", i, n_elems);
-  //   for (int j = 0; j < n_elems; j++)
-  //   {
-  //     float value = deqnt_affine_to_f32(output[j], out_zp, out_scale);
-  //     fprintf(fp, "%f\n", value);
-  //   }
-  //   fclose(fp);
-  // }
+#if SAVE_OUTPUTS
+  // save float outputs for debugging
+  for (int i = 0; i < io_num.n_output; ++i) {
+    char path[128];
+    sprintf(path, "./rknn_output_real_%d.txt", i);
+    FILE* fp = fopen (path, "w");
+    uint8_t* output = (uint8_t*) outputs[i].buf;
+    float out_scale = output_attrs[i].scale;
+    uint32_t out_zp = output_attrs[i].zp;
+    uint32_t n_elems = output_attrs[i].n_elems;
+    // printf("output idx %d n_elems --> %d \n", i, n_elems);
+    for (int j = 0; j < n_elems; j++)
+    {
+      float value = deqnt_affine_to_f32(output[j], out_zp, out_scale);
+      fprintf(fp, "%f\n", value);
+    }
+    fclose(fp);
+  }
+#endif
 
 #if SAVE_F16_OUTPUTS
   // save float outputs for debugging
@@ -506,7 +509,8 @@ int main(int argc, char** argv)
   // post_process_acfree_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, (uint16_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
   // post_process_acfree_6_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, (uint16_t*)outputs[5].buf, (uint16_t*)outputs[6].buf, (uint16_t*)outputs[7].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
   // post_process_acfree_6((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, (uint8_t*)outputs[5].buf, (uint8_t*)outputs[6].buf, (uint8_t*)outputs[7].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
-    post_process_player_6_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
+    // post_process_player_6_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
+  post_process_player_6((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
 
   // Draw Objects
   char                text[256];

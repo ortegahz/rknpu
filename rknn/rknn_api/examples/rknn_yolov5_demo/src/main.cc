@@ -49,76 +49,78 @@ using namespace cimg_library;
                   Functions
 -------------------------------------------*/
 
-void __f32_to_f16(uint16_t* f16, float* f32, int num)
+void __f32_to_f16(uint16_t *f16, float *f32, int num)
 {
-    float* src = f32;
-    uint16_t* dst = f16;
-    int i = 0;
+  float *src = f32;
+  uint16_t *dst = f16;
+  int i = 0;
 
-    for (; i < num; i++) {
-        float in = *src;
+  for (; i < num; i++)
+  {
+    float in = *src;
 
-        uint32_t fp32 = *((uint32_t *) &in);
-        uint32_t t1 = (fp32 & 0x80000000u) >> 16;  /* sign bit. */
-        uint32_t t2 = (fp32 & 0x7F800000u) >> 13;  /* Exponent bits */
-        uint32_t t3 = (fp32 & 0x007FE000u) >> 13;  /* Mantissa bits, no rounding */
-        uint32_t fp16 = 0u;
+    uint32_t fp32 = *((uint32_t *)&in);
+    uint32_t t1 = (fp32 & 0x80000000u) >> 16; /* sign bit. */
+    uint32_t t2 = (fp32 & 0x7F800000u) >> 13; /* Exponent bits */
+    uint32_t t3 = (fp32 & 0x007FE000u) >> 13; /* Mantissa bits, no rounding */
+    uint32_t fp16 = 0u;
 
-        if( t2 >= 0x023c00u )
-        {
-            fp16 = t1 | 0x7BFF;     /* Don't round to infinity. */
-        }
-        else if( t2 <= 0x01c000u )
-        {
-            fp16 = t1;
-        }
-        else
-        {
-            t2 -= 0x01c000u;
-            fp16 = t1 | t2 | t3;
-        }
-
-        *dst = (uint16_t) fp16;
-
-        src ++;
-        dst ++;
+    if (t2 >= 0x023c00u)
+    {
+      fp16 = t1 | 0x7BFF; /* Don't round to infinity. */
     }
+    else if (t2 <= 0x01c000u)
+    {
+      fp16 = t1;
+    }
+    else
+    {
+      t2 -= 0x01c000u;
+      fp16 = t1 | t2 | t3;
+    }
+
+    *dst = (uint16_t)fp16;
+
+    src++;
+    dst++;
+  }
 }
 
-void __f16_to_f32(float* f32, uint16_t* f16, int num)
+void __f16_to_f32(float *f32, uint16_t *f16, int num)
 {
-    uint16_t* src = f16;
-    float* dst = f32;
-    int i = 0;
+  uint16_t *src = f16;
+  float *dst = f32;
+  int i = 0;
 
-    for (; i < num; i++) {
-        uint16_t in = *src;
+  for (; i < num; i++)
+  {
+    uint16_t in = *src;
 
-        int32_t t1;
-        int32_t t2;
-        int32_t t3;
-        float out;
+    int32_t t1;
+    int32_t t2;
+    int32_t t3;
+    float out;
 
-        t1 = in & 0x7fff;         // Non-sign bits
-        t2 = in & 0x8000;         // Sign bit
-        t3 = in & 0x7c00;         // Exponent
+    t1 = in & 0x7fff; // Non-sign bits
+    t2 = in & 0x8000; // Sign bit
+    t3 = in & 0x7c00; // Exponent
 
-        t1 <<= 13;                // Align mantissa on MSB
-        t2 <<= 16;                // Shift sign bit into position
+    t1 <<= 13; // Align mantissa on MSB
+    t2 <<= 16; // Shift sign bit into position
 
-        t1 += 0x38000000;         // Adjust bias
+    t1 += 0x38000000; // Adjust bias
 
-        t1 = (t3 == 0 ? 0 : t1);  // Denormals-as-zero
+    t1 = (t3 == 0 ? 0 : t1); // Denormals-as-zero
 
-        t1 |= t2;                 // Re-insert sign bit
+    t1 |= t2; // Re-insert sign bit
 
-        *((uint32_t*)&out) = t1;
+    *((uint32_t *)&out) = t1;
 
-        *dst = out;
+    *dst = out;
 
-        src ++;
-        dst ++;
-    }
+    src++;
+    dst++;
+  }
 }
 
 static float __f16_to_f32_s(uint16_t f16)
@@ -131,29 +133,28 @@ static float __f16_to_f32_s(uint16_t f16)
   uint32_t t4;
   float out;
 
-  t1 = in & 0x7fff;         // Non-sign bits
-  t2 = in & 0x8000;         // Sign bit
-  t3 = in & 0x7c00;         // Exponent
+  t1 = in & 0x7fff; // Non-sign bits
+  t2 = in & 0x8000; // Sign bit
+  t3 = in & 0x7c00; // Exponent
 
-  t1 <<= 13;                // Align mantissa on MSB
-  t2 <<= 16;                // Shift sign bit into position
+  t1 <<= 13; // Align mantissa on MSB
+  t2 <<= 16; // Shift sign bit into position
 
-  t1 += 0x38000000;         // Adjust bias
+  t1 += 0x38000000; // Adjust bias
 
-  t1 = (t3 == 0 ? 0 : t1);  // Denormals-as-zero
+  t1 = (t3 == 0 ? 0 : t1); // Denormals-as-zero
 
-  t1 |= t2;                 // Re-insert sign bit
+  t1 |= t2; // Re-insert sign bit
 
-  *((uint32_t*)&out) = t1;
+  *((uint32_t *)&out) = t1;
 
   return out;
-
 }
 
-
-inline const char* get_type_string(rknn_tensor_type type)
+inline const char *get_type_string(rknn_tensor_type type)
 {
-  switch (type) {
+  switch (type)
+  {
   case RKNN_TENSOR_FLOAT32:
     return "FP32";
   case RKNN_TENSOR_FLOAT16:
@@ -169,9 +170,10 @@ inline const char* get_type_string(rknn_tensor_type type)
   }
 }
 
-inline const char* get_qnt_type_string(rknn_tensor_qnt_type type)
+inline const char *get_qnt_type_string(rknn_tensor_qnt_type type)
 {
-  switch (type) {
+  switch (type)
+  {
   case RKNN_TENSOR_QNT_NONE:
     return "NONE";
   case RKNN_TENSOR_QNT_DFP:
@@ -183,9 +185,10 @@ inline const char* get_qnt_type_string(rknn_tensor_qnt_type type)
   }
 }
 
-inline const char* get_format_string(rknn_tensor_format fmt)
+inline const char *get_format_string(rknn_tensor_format fmt)
 {
-  switch (fmt) {
+  switch (fmt)
+  {
   case RKNN_TENSOR_NCHW:
     return "NCHW";
   case RKNN_TENSOR_NHWC:
@@ -195,7 +198,7 @@ inline const char* get_format_string(rknn_tensor_format fmt)
   }
 }
 
-static void dump_tensor_attr(rknn_tensor_attr* attr)
+static void dump_tensor_attr(rknn_tensor_attr *attr)
 {
   printf("  index=%d, name=%s, n_dims=%d, dims=[%d, %d, %d, %d], n_elems=%d, size=%d, fmt=%s, type=%s, qnt_type=%s, "
          "zp=%d, scale=%f\n",
@@ -206,25 +209,28 @@ static void dump_tensor_attr(rknn_tensor_attr* attr)
 
 double __get_us(struct timeval t) { return (t.tv_sec * 1000000 + t.tv_usec); }
 
-static unsigned char* load_data(FILE* fp, size_t ofst, size_t sz)
+static unsigned char *load_data(FILE *fp, size_t ofst, size_t sz)
 {
-  unsigned char* data;
-  int            ret;
+  unsigned char *data;
+  int ret;
 
   data = NULL;
 
-  if (NULL == fp) {
+  if (NULL == fp)
+  {
     return NULL;
   }
 
   ret = fseek(fp, ofst, SEEK_SET);
-  if (ret != 0) {
+  if (ret != 0)
+  {
     printf("blob seek failure.\n");
     return NULL;
   }
 
-  data = (unsigned char*)malloc(sz);
-  if (data == NULL) {
+  data = (unsigned char *)malloc(sz);
+  if (data == NULL)
+  {
     printf("buffer malloc failure.\n");
     return NULL;
   }
@@ -232,13 +238,14 @@ static unsigned char* load_data(FILE* fp, size_t ofst, size_t sz)
   return data;
 }
 
-static unsigned char* load_model(const char* filename, int* model_size)
+static unsigned char *load_model(const char *filename, int *model_size)
 {
-  FILE*          fp;
-  unsigned char* data;
+  FILE *fp;
+  unsigned char *data;
 
   fp = fopen(filename, "rb");
-  if (NULL == fp) {
+  if (NULL == fp)
+  {
     printf("Open file %s failed.\n", filename);
     return NULL;
   }
@@ -254,33 +261,35 @@ static unsigned char* load_model(const char* filename, int* model_size)
   return data;
 }
 
-static int saveFloat(const char* file_name, float* output, int element_size)
+static int saveFloat(const char *file_name, float *output, int element_size)
 {
-  FILE* fp;
+  FILE *fp;
   fp = fopen(file_name, "w");
-  for (int i = 0; i < element_size; i++) {
+  for (int i = 0; i < element_size; i++)
+  {
     fprintf(fp, "%.6f\n", output[i]);
   }
   fclose(fp);
   return 0;
 }
 
-static unsigned char* load_image(const char* image_path, int* org_height, int* org_width, int* org_ch,
-                                 rknn_tensor_attr* input_attr)
+static unsigned char *load_image(const char *image_path, int *org_height, int *org_width, int *org_ch,
+                                 rknn_tensor_attr *input_attr)
 {
-  int req_height  = 0;
-  int req_width   = 0;
+  int req_height = 0;
+  int req_width = 0;
   int req_channel = 0;
 
-  switch (input_attr->fmt) {
+  switch (input_attr->fmt)
+  {
   case RKNN_TENSOR_NHWC:
-    req_height  = input_attr->dims[2];
-    req_width   = input_attr->dims[1];
+    req_height = input_attr->dims[2];
+    req_width = input_attr->dims[1];
     req_channel = input_attr->dims[0];
     break;
   case RKNN_TENSOR_NCHW:
-    req_height  = input_attr->dims[1];
-    req_width   = input_attr->dims[0];
+    req_height = input_attr->dims[1];
+    req_width = input_attr->dims[0];
     req_channel = input_attr->dims[2];
     break;
   default:
@@ -288,18 +297,19 @@ static unsigned char* load_image(const char* image_path, int* org_height, int* o
     return NULL;
   }
 
-  int height  = 0;
-  int width   = 0;
+  int height = 0;
+  int width = 0;
   int channel = 0;
 
-  unsigned char* image_data = stbi_load(image_path, &width, &height, &channel, req_channel);
-  if (image_data == NULL) {
+  unsigned char *image_data = stbi_load(image_path, &width, &height, &channel, req_channel);
+  if (image_data == NULL)
+  {
     printf("load image failed!\n");
     return NULL;
   }
-  *org_width  = width;
+  *org_width = width;
   *org_height = height;
-  *org_ch     = channel;
+  *org_ch = channel;
 
   return image_data;
 }
@@ -307,56 +317,60 @@ static unsigned char* load_image(const char* image_path, int* org_height, int* o
 /*-------------------------------------------
                   Main Functions
 -------------------------------------------*/
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
-  int            status     = 0;
-  char*          model_name = NULL;
-  rknn_context   ctx;
-  void*          drm_buf = NULL;
-  int            drm_fd  = -1;
-  int            buf_fd  = -1; // converted from buffer handle
-  unsigned int   handle;
-  size_t         actual_size = 0;
-  int            img_width   = 0;
-  int            img_height  = 0;
-  int            img_channel = 0;
-  rga_context    rga_ctx;
-  drm_context    drm_ctx;
-  const float    nms_threshold      = NMS_THRESH;
-  const float    box_conf_threshold = BOX_THRESH;
+  int status = 0;
+  char *model_name = NULL;
+  rknn_context ctx;
+  void *drm_buf = NULL;
+  int drm_fd = -1;
+  int buf_fd = -1; // converted from buffer handle
+  unsigned int handle;
+  size_t actual_size = 0;
+  int img_width = 0;
+  int img_height = 0;
+  int img_channel = 0;
+  rga_context rga_ctx;
+  drm_context drm_ctx;
+  const float nms_threshold = NMS_THRESH;
+  const float box_conf_threshold = BOX_THRESH;
   struct timeval start_time, stop_time;
-  int            ret;
+  int ret;
   memset(&rga_ctx, 0, sizeof(rga_context));
   memset(&drm_ctx, 0, sizeof(drm_context));
 
-  if (argc != 3) {
+  if (argc != 3)
+  {
     printf("Usage: %s <rknn model> <bmp> \n", argv[0]);
     return -1;
   }
 
   printf("post process config: box_conf_threshold = %f, nms_threshold = %f\n", box_conf_threshold, nms_threshold);
 
-  model_name       = (char*)argv[1];
-  char* image_name = argv[2];
+  model_name = (char *)argv[1];
+  char *image_name = argv[2];
 
-  if (strstr(image_name, ".jpg") != NULL || strstr(image_name, ".png") != NULL) {
+  if (strstr(image_name, ".jpg") != NULL || strstr(image_name, ".png") != NULL)
+  {
     printf("Error: read %s failed! only support .bmp format image\n", image_name);
     return -1;
   }
 
   /* Create the neural network */
   printf("Loading mode...\n");
-  int            model_data_size = 0;
-  unsigned char* model_data      = load_model(model_name, &model_data_size);
-  ret                            = rknn_init(&ctx, model_data, model_data_size, 0);
-  if (ret < 0) {
+  int model_data_size = 0;
+  unsigned char *model_data = load_model(model_name, &model_data_size);
+  ret = rknn_init(&ctx, model_data, model_data_size, 0);
+  if (ret < 0)
+  {
     printf("rknn_init error ret=%d\n", ret);
     return -1;
   }
 
   rknn_sdk_version version;
   ret = rknn_query(ctx, RKNN_QUERY_SDK_VERSION, &version, sizeof(rknn_sdk_version));
-  if (ret < 0) {
+  if (ret < 0)
+  {
     printf("rknn_init error ret=%d\n", ret);
     return -1;
   }
@@ -364,7 +378,8 @@ int main(int argc, char** argv)
 
   rknn_input_output_num io_num;
   ret = rknn_query(ctx, RKNN_QUERY_IN_OUT_NUM, &io_num, sizeof(io_num));
-  if (ret < 0) {
+  if (ret < 0)
+  {
     printf("rknn_init error ret=%d\n", ret);
     return -1;
   }
@@ -372,10 +387,12 @@ int main(int argc, char** argv)
 
   rknn_tensor_attr input_attrs[io_num.n_input];
   memset(input_attrs, 0, sizeof(input_attrs));
-  for (int i = 0; i < io_num.n_input; i++) {
+  for (int i = 0; i < io_num.n_input; i++)
+  {
     input_attrs[i].index = i;
-    ret                  = rknn_query(ctx, RKNN_QUERY_INPUT_ATTR, &(input_attrs[i]), sizeof(rknn_tensor_attr));
-    if (ret < 0) {
+    ret = rknn_query(ctx, RKNN_QUERY_INPUT_ATTR, &(input_attrs[i]), sizeof(rknn_tensor_attr));
+    if (ret < 0)
+    {
       printf("rknn_init error ret=%d\n", ret);
       return -1;
     }
@@ -384,9 +401,10 @@ int main(int argc, char** argv)
 
   rknn_tensor_attr output_attrs[io_num.n_output];
   memset(output_attrs, 0, sizeof(output_attrs));
-  for (int i = 0; i < io_num.n_output; i++) {
+  for (int i = 0; i < io_num.n_output; i++)
+  {
     output_attrs[i].index = i;
-    ret                   = rknn_query(ctx, RKNN_QUERY_OUTPUT_ATTR, &(output_attrs[i]), sizeof(rknn_tensor_attr));
+    ret = rknn_query(ctx, RKNN_QUERY_OUTPUT_ATTR, &(output_attrs[i]), sizeof(rknn_tensor_attr));
     dump_tensor_attr(&(output_attrs[i]));
     printf("output_attrs[%d].type --> %d \n", i, output_attrs[i].type);
 
@@ -400,15 +418,18 @@ int main(int argc, char** argv)
   }
 
   int channel = 3;
-  int width   = 0;
-  int height  = 0;
-  if (input_attrs[0].fmt == RKNN_TENSOR_NCHW) {
+  int width = 0;
+  int height = 0;
+  if (input_attrs[0].fmt == RKNN_TENSOR_NCHW)
+  {
     printf("model is NCHW input fmt\n");
-    width  = input_attrs[0].dims[0];
+    width = input_attrs[0].dims[0];
     height = input_attrs[0].dims[1];
-  } else {
+  }
+  else
+  {
     printf("model is NHWC input fmt\n");
-    width  = input_attrs[0].dims[1];
+    width = input_attrs[0].dims[1];
     height = input_attrs[0].dims[2];
   }
 
@@ -416,25 +437,26 @@ int main(int argc, char** argv)
 
   // Load image
   CImg<unsigned char> img(image_name);
-  unsigned char*      input_data = NULL;
-  input_data                     = load_image(image_name, &img_height, &img_width, &img_channel, &input_attrs[0]);
-  if (!input_data) {
+  unsigned char *input_data = NULL;
+  input_data = load_image(image_name, &img_height, &img_width, &img_channel, &input_attrs[0]);
+  if (!input_data)
+  {
     return -1;
   }
 
   rknn_input inputs[1];
   memset(inputs, 0, sizeof(inputs));
-  inputs[0].index        = 0;
-  inputs[0].type         = RKNN_TENSOR_UINT8;
-  inputs[0].size         = width * height * channel;
-  inputs[0].fmt          = RKNN_TENSOR_NHWC;
+  inputs[0].index = 0;
+  inputs[0].type = RKNN_TENSOR_UINT8;
+  inputs[0].size = width * height * channel;
+  inputs[0].fmt = RKNN_TENSOR_NHWC;
   inputs[0].pass_through = 0;
 
   // DRM alloc buffer
-  drm_fd  = drm_init(&drm_ctx);
+  drm_fd = drm_init(&drm_ctx);
   drm_buf = drm_buf_alloc(&drm_ctx, drm_fd, img_width, img_height, channel * 8, &buf_fd, &handle, &actual_size);
   memcpy(drm_buf, input_data, img_width * img_height * channel);
-  void* resize_buf = malloc(height * width * channel);
+  void *resize_buf = malloc(height * width * channel);
 
   // init rga context
   RGA_init(&rga_ctx);
@@ -445,7 +467,8 @@ int main(int argc, char** argv)
 
   rknn_output outputs[io_num.n_output];
   memset(outputs, 0, sizeof(outputs));
-  for (int i = 0; i < io_num.n_output; i++) {
+  for (int i = 0; i < io_num.n_output; i++)
+  {
     outputs[i].want_float = 0;
   }
 
@@ -459,20 +482,22 @@ int main(int argc, char** argv)
   float scale_h = (float)height / img_height;
 
   detect_result_group_t detect_result_group;
-  std::vector<float>    out_scales;
+  std::vector<float> out_scales;
   std::vector<uint32_t> out_zps;
-  for (int i = 0; i < io_num.n_output; ++i) {
+  for (int i = 0; i < io_num.n_output; ++i)
+  {
     out_scales.push_back(output_attrs[i].scale);
     out_zps.push_back(output_attrs[i].zp);
   }
 
 #if SAVE_OUTPUTS
   // save float outputs for debugging
-  for (int i = 0; i < io_num.n_output; ++i) {
+  for (int i = 0; i < io_num.n_output; ++i)
+  {
     char path[128];
     sprintf(path, "./rknn_output_real_%d.txt", i);
-    FILE* fp = fopen (path, "w");
-    uint8_t* output = (uint8_t*) outputs[i].buf;
+    FILE *fp = fopen(path, "w");
+    uint8_t *output = (uint8_t *)outputs[i].buf;
     float out_scale = output_attrs[i].scale;
     uint32_t out_zp = output_attrs[i].zp;
     uint32_t n_elems = output_attrs[i].n_elems;
@@ -488,11 +513,12 @@ int main(int argc, char** argv)
 
 #if SAVE_F16_OUTPUTS
   // save float outputs for debugging
-  for (int i = 0; i < io_num.n_output; ++i) {
+  for (int i = 0; i < io_num.n_output; ++i)
+  {
     char path[128];
     sprintf(path, "./rknn_output_real_nq_%d.txt", i);
-    FILE* fp = fopen (path, "w");
-    uint16_t* output = (uint16_t*) outputs[i].buf;
+    FILE *fp = fopen(path, "w");
+    uint16_t *output = (uint16_t *)outputs[i].buf;
     uint32_t n_elems = output_attrs[i].n_elems;
     for (int j = 0; j < n_elems; j++)
     {
@@ -509,16 +535,17 @@ int main(int argc, char** argv)
   // post_process_acfree_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, (uint16_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
   // post_process_acfree_6_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, (uint16_t*)outputs[5].buf, (uint16_t*)outputs[6].buf, (uint16_t*)outputs[7].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
   // post_process_acfree_6((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, (uint8_t*)outputs[5].buf, (uint8_t*)outputs[6].buf, (uint8_t*)outputs[7].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
-    // post_process_player_6_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
-  post_process_player_6((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
+  // post_process_player_6_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
+  post_process_player_6((uint8_t *)outputs[0].buf, (uint8_t *)outputs[1].buf, (uint8_t *)outputs[2].buf, (uint8_t *)outputs[3].buf, (uint8_t *)outputs[4].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
 
   // Draw Objects
-  char                text[256];
-  const unsigned char blue[]  = {0, 0, 255};
-  const unsigned char red[]  = {255, 0, 0};
+  char text[256];
+  const unsigned char blue[] = {0, 0, 255};
+  const unsigned char red[] = {255, 0, 0};
   const unsigned char white[] = {255, 255, 255};
-  for (int i = 0; i < detect_result_group.count; i++) {
-    detect_result_t* det_result = &(detect_result_group.results[i]);
+  for (int i = 0; i < detect_result_group.count; i++)
+  {
+    detect_result_t *det_result = &(detect_result_group.results[i]);
     sprintf(text, "%s %.2f", det_result->name, det_result->prop);
     // printf("%s @ (%d %d %d %d) %f\n", det_result->name, det_result->box.left, det_result->box.top,
     //        det_result->box.right, det_result->box.bottom, det_result->prop);
@@ -542,20 +569,21 @@ int main(int argc, char** argv)
   img.save("./out.bmp");
 
   // Save Parser Results
-  FILE * fid = fopen("npu_parser_results.txt", "w");
+  FILE *fid = fopen("npu_parser_results.txt", "w");
   assert(fid != NULL);
-  for (int i = 0; i < detect_result_group.count; i++) {
-    detect_result_t* det_result = &(detect_result_group.results[i]);
+  for (int i = 0; i < detect_result_group.count; i++)
+  {
+    detect_result_t *det_result = &(detect_result_group.results[i]);
     // printf("%s @ (%d %d %d %d) %f\n", det_result->name, det_result->box.left, det_result->box.top,
     //        det_result->box.right, det_result->box.bottom, det_result->prop);
-    float x1 = (float) det_result->box.left;
-    float y1 = (float) det_result->box.top;
-    float x2 = (float) det_result->box.right;
-    float y2 = (float) det_result->box.bottom;
-    float xc = (x1 + x2) / 2 / (float) width;
-    float yc = (y1 + y2) / 2 / (float) height;
-    float w = (x2 - x1) / (float) width;
-    float h = (y2 - y1) / (float) height;
+    float x1 = (float)det_result->box.left;
+    float y1 = (float)det_result->box.top;
+    float x2 = (float)det_result->box.right;
+    float y2 = (float)det_result->box.bottom;
+    float xc = (x1 + x2) / 2 / (float)width;
+    float yc = (y1 + y2) / 2 / (float)height;
+    float w = (x2 - x1) / (float)width;
+    float h = (y2 - y1) / (float)height;
     int x = det_result->poi.x;
     int y = det_result->poi.y;
     float conf = det_result->poi.conf;
@@ -569,7 +597,8 @@ int main(int argc, char** argv)
   // loop test
   int test_count = 0;
   gettimeofday(&start_time, NULL);
-  for (int i = 0; i < test_count; ++i) {
+  for (int i = 0; i < test_count; ++i)
+  {
     // img_resize_slow(&rga_ctx, drm_buf, img_width, img_height, resize_buf, width, height);
     rknn_inputs_set(ctx, io_num.n_input, inputs);
     ret = rknn_run(ctx, NULL);
@@ -577,8 +606,8 @@ int main(int argc, char** argv)
 #if PERF_WITH_POST
     // post_process((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, height, width,
     //              box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
-  post_process_acfree((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, (uint8_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
-  // post_process_acfree_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, (uint16_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
+    post_process_acfree((uint8_t *)outputs[0].buf, (uint8_t *)outputs[1].buf, (uint8_t *)outputs[2].buf, (uint8_t *)outputs[3].buf, (uint8_t *)outputs[4].buf, (uint8_t *)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
+    // post_process_acfree_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, (uint16_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
 #endif
     ret = rknn_outputs_release(ctx, io_num.n_output, outputs);
   }
@@ -592,11 +621,13 @@ int main(int argc, char** argv)
 
   drm_deinit(&drm_ctx, drm_fd);
   RGA_deinit(&rga_ctx);
-  if (model_data) {
+  if (model_data)
+  {
     free(model_data);
   }
 
-  if (resize_buf) {
+  if (resize_buf)
+  {
     free(resize_buf);
   }
   stbi_image_free(input_data);

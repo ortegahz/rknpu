@@ -3,12 +3,25 @@
 
 #include <stdint.h>
 
+#include "opencv2/core.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui/highgui.hpp"
+
 #define OBJ_NAME_MAX_SIZE 16
 #define OBJ_NUMB_MAX_SIZE 1024
 #define OBJ_CLASS_NUM     1
 #define NMS_THRESH        0.3
 #define BOX_THRESH        0.4
 #define PROP_BOX_SIZE     (5+OBJ_CLASS_NUM)
+
+#define KPS_PIXEL_STD 200
+#define KPS_PIXEL_BORDER 10
+#define KPS_GAUSSIAN_KERNEL 11
+#define KPS_KEYPOINT_NUM 17
+#define KPS_OUTPUT_SHAPE_H 64
+#define KPS_OUTPUT_SHAPE_W 48
+#define KPS_STRIDE 4
+#define KPS_SHIFTS 0.25
 
 typedef struct _POI
 {
@@ -39,6 +52,26 @@ typedef struct _detect_result_group_t
     int count;
     detect_result_t results[OBJ_NUMB_MAX_SIZE];
 } detect_result_group_t;
+
+typedef struct _KP
+{
+    float x;
+    float y;
+    float conf;
+} KP;
+
+typedef struct _kps_result_t
+{
+    KP kps[KPS_KEYPOINT_NUM];
+} kps_result_t;
+
+typedef struct _kps_result_group_t
+{
+    int count;
+    kps_result_t results[OBJ_NUMB_MAX_SIZE];
+} kps_result_group_t;
+
+int post_process_kps_f16(uint16_t* input, kps_result_group_t *group);
 
 int post_process_player_6(uint8_t* input0, uint8_t* input1, uint8_t* input2, uint8_t* input3, uint8_t* input4, int model_in_h, int model_in_w, float conf_threshold, float nms_threshold, float scale_w, float scale_h, std::vector<uint32_t>& qnt_zps, std::vector<float>& qnt_scales, detect_result_group_t* group);
 

@@ -41,8 +41,9 @@
 #include "rknn_api.h"
 
 #define PERF_WITH_POST 0
-#define SAVE_OUTPUTS 1
+#define SAVE_OUTPUTS 0
 #define SAVE_F16_OUTPUTS 0
+#define SAVE_F16_OUTPUTS_KPS 1
 
 using namespace cimg_library;
 /*-------------------------------------------
@@ -322,16 +323,27 @@ int main(int argc, char **argv)
   int status = 0;
   char *model_name = NULL;
   rknn_context ctx;
+  rknn_context ctx_kps;
   void *drm_buf = NULL;
+  void *drm_buf_kps = NULL;
   int drm_fd = -1;
-  int buf_fd = -1; // converted from buffer handle
+  int drm_fd_kps = -1;
+  int buf_fd = -1;     // converted from buffer handle
+  int buf_fd_kps = -1; // converted from buffer handle
   unsigned int handle;
+  unsigned int handle_kps;
   size_t actual_size = 0;
+  size_t actual_size_kps = 0;
   int img_width = 0;
   int img_height = 0;
   int img_channel = 0;
+  int img_width_kps = 0;
+  int img_height_kps = 0;
+  int img_channel_kps = 0;
   rga_context rga_ctx;
+  rga_context rga_ctx_kps;
   drm_context drm_ctx;
+  drm_context drm_ctx_kps;
   const float nms_threshold = NMS_THRESH;
   const float box_conf_threshold = BOX_THRESH;
   struct timeval start_time, stop_time;
@@ -354,6 +366,166 @@ int main(int argc, char **argv)
   {
     printf("Error: read %s failed! only support .bmp format image\n", image_name);
     return -1;
+  }
+
+  {
+    /* create the kps neural network */
+    printf("Loading kps mode...\n");
+    int model_data_size = 0;
+    unsigned char *model_data = load_model("./model/rv1109_rv1126/iter-96000.rknn", &model_data_size);
+    ret = rknn_init(&ctx_kps, model_data, model_data_size, 0);
+    if (ret < 0)
+    {
+      printf("kps rknn_init error ret=%d\n", ret);
+      return -1;
+    }
+
+    rknn_input_output_num io_num;
+    ret = rknn_query(ctx_kps, RKNN_QUERY_IN_OUT_NUM, &io_num, sizeof(io_num));
+    if (ret < 0)
+    {
+      printf("kps rknn_query error ret=%d\n", ret);
+      return -1;
+    }
+    printf("kps model input num: %d, output num: %d\n", io_num.n_input, io_num.n_output);
+
+    rknn_tensor_attr input_attrs[io_num.n_input];
+    memset(input_attrs, 0, sizeof(input_attrs));
+    for (int i = 0; i < io_num.n_input; i++)
+    {
+      input_attrs[i].index = i;
+      ret = rknn_query(ctx_kps, RKNN_QUERY_INPUT_ATTR, &(input_attrs[i]), sizeof(rknn_tensor_attr));
+      if (ret < 0)
+      {
+        printf("kps rknn_query error ret=%d\n", ret);
+        return -1;
+      }
+      dump_tensor_attr(&(input_attrs[i]));
+    }
+
+    rknn_tensor_attr output_attrs[io_num.n_output];
+    memset(output_attrs, 0, sizeof(output_attrs));
+    for (int i = 0; i < io_num.n_output; i++)
+    {
+      output_attrs[i].index = i;
+      ret = rknn_query(ctx_kps, RKNN_QUERY_OUTPUT_ATTR, &(output_attrs[i]), sizeof(rknn_tensor_attr));
+      dump_tensor_attr(&(output_attrs[i]));
+    }
+
+    int channel = 3;
+    int width = 0;
+    int height = 0;
+    if (input_attrs[0].fmt == RKNN_TENSOR_NCHW)
+    {
+      printf("kps model is NCHW input fmt\n");
+      width = input_attrs[0].dims[0];
+      height = input_attrs[0].dims[1];
+    }
+    else
+    {
+      printf("kps model is NHWC input fmt\n");
+      width = input_attrs[0].dims[1];
+      height = input_attrs[0].dims[2];
+    }
+
+    printf("kps model input height=%d, width=%d, channel=%d\n", height, width, channel);
+
+    // Load image
+    // CImg<unsigned char> img_kps("./model/rsn_align.bmp");
+    unsigned char *input_data = NULL;
+    // input_data = load_image("./model/rsn_align.bmp", &img_height_kps, &img_width_kps, &img_channel_kps, &input_attrs[0]);
+    // if (!input_data)
+    // {
+    //   return -1;
+    // }
+    cv::Mat img = cv::imread("./model/rsn_align.bmp");
+    input_data = img.data;
+
+    rknn_input inputs[1];
+    memset(inputs, 0, sizeof(inputs));
+    inputs[0].index = 0;
+    inputs[0].type = RKNN_TENSOR_UINT8;
+    inputs[0].size = width * height * channel;
+    inputs[0].fmt = RKNN_TENSOR_NHWC;
+    inputs[0].pass_through = 0;
+
+    // DRM alloc buffer
+    // drm_fd_kps = drm_init(&drm_ctx_kps);
+    // drm_buf_kps = drm_buf_alloc(&drm_ctx_kps, drm_fd_kps, img_width_kps, img_height_kps, channel * 8, &buf_fd_kps, &handle_kps, &actual_size_kps);
+    // memcpy(drm_buf_kps, input_data, img_width_kps * img_height_kps * channel);
+    void *resize_buf = malloc(height * width * channel);
+    // unsigned char *p = (unsigned char *) resize_buf;
+
+    // init rga context
+    RGA_init(&rga_ctx_kps);
+    // img_resize_slow_kps(&rga_ctx_kps, drm_buf_kps, img_width_kps, img_height_kps, resize_buf, width, height);
+    memcpy(resize_buf, input_data, height * width * channel);
+    // cv::Mat img_save = img;
+    // img_save.data = (unsigned char *) resize_buf;
+    // cv::imwrite("./img_save.bmp", img_save);
+    inputs[0].buf = resize_buf;
+    gettimeofday(&start_time, NULL);
+    rknn_inputs_set(ctx_kps, io_num.n_input, inputs);
+
+    rknn_output outputs[io_num.n_output];
+    memset(outputs, 0, sizeof(outputs));
+    for (int i = 0; i < io_num.n_output; i++)
+    {
+      outputs[i].want_float = 0;
+    }
+
+    ret = rknn_run(ctx_kps, NULL);
+    ret = rknn_outputs_get(ctx_kps, io_num.n_output, outputs, NULL);
+    gettimeofday(&stop_time, NULL);
+    printf("kps once run use %f ms\n", (__get_us(stop_time) - __get_us(start_time)) / 1000);
+
+    float scale_w = (float)width / img_width_kps;
+    float scale_h = (float)height / img_height_kps;
+
+    kps_result_group_t kps_result_group;
+    std::vector<float> out_scales;
+    std::vector<uint32_t> out_zps;
+    for (int i = 0; i < io_num.n_output; ++i)
+    {
+      out_scales.push_back(output_attrs[i].scale);
+      out_zps.push_back(output_attrs[i].zp);
+    }
+
+#if SAVE_F16_OUTPUTS_KPS
+    // save float outputs for debugging
+    for (int i = 0; i < io_num.n_output; ++i)
+    {
+      char path[512];
+      sprintf(path, "./rknn_output_real_kps_nq_%d.txt", i);
+      FILE *fp = fopen(path, "w");
+      uint16_t *output = (uint16_t *)outputs[i].buf;
+      uint32_t n_elems = output_attrs[i].n_elems;
+      for (int j = 0; j < n_elems; j++)
+      {
+        float value = __f16_to_f32_s(output[j]);
+        fprintf(fp, "%f\n", value);
+      }
+      fclose(fp);
+    }
+#endif
+
+    post_process_kps_f16((uint16_t *)outputs[0].buf, &kps_result_group);
+
+  // Save KPS Parser Results
+  FILE * fid = fopen("npu_parser_results_kps.txt", "w");
+  assert(fid != NULL);
+  for (int i = 0; i < kps_result_group.count; i++) {
+    kps_result_t* kps_result = &(kps_result_group.results[i]);
+    for (int j = 0; j < KPS_KEYPOINT_NUM; j++) {
+      float x = (float) kps_result->kps[j].x;
+      float y = (float) kps_result->kps[j].y;
+      float conf = kps_result->kps[j].conf;
+      fprintf(fid, "%f, %f,  %f \n", x, y, conf);
+    }
+  }
+  fclose(fid);
+
+    return 0;
   }
 
   /* Create the neural network */

@@ -2,3 +2,5 @@
 
 rknn/rknn_api/examples/rknn_yolov5_demo/build/
 rknn/rknn_api/examples/rknn_yolov5_demo/install/
+
+\.vscode/

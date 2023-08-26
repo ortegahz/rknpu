@@ -695,6 +695,78 @@ int post_process_acfree_f16(uint16_t* input0, uint16_t* input1, uint16_t* input2
   return 0;
 }
 
+int post_process_kps_f16(uint16_t *pu16Input, kps_result_group_t *group)
+{
+  int iGridLen = KPS_OUTPUT_SHAPE_H * KPS_OUTPUT_SHAPE_W;
+  for (int i = 0; i < KPS_KEYPOINT_NUM; i++) {
+    cv::Mat featureMap = cv::Mat::zeros(KPS_OUTPUT_SHAPE_H + 2 * KPS_PIXEL_BORDER, KPS_OUTPUT_SHAPE_W + 2 * KPS_PIXEL_BORDER, CV_32F);
+    cv::Mat featureMapFiltered;
+    for (int j = 0; j < KPS_OUTPUT_SHAPE_H; j++) {
+      for (int k = 0; k < KPS_OUTPUT_SHAPE_W; k++) {
+          int iOffset = i * iGridLen + j * KPS_OUTPUT_SHAPE_W + k;
+          uint16_t u16Value = pu16Input[iOffset];
+          float fValue = __f16_to_f32_s(u16Value);
+          featureMap.at<float>(j + KPS_PIXEL_BORDER, k + KPS_PIXEL_BORDER) = fValue;
+      }
+    }
+
+    cv::GaussianBlur(featureMap, featureMapFiltered, cv::Size(KPS_GAUSSIAN_KERNEL, KPS_GAUSSIAN_KERNEL), 0);
+    char pcPathSave[512];
+    sprintf(pcPathSave, "./rknn_output_featureMap_%d.txt", i);
+    FILE *pFileHandle = fopen(pcPathSave, "w");
+    for (int j = 0; j < featureMapFiltered.rows; j++) {
+      for (int k = 0; k < featureMapFiltered.cols; k++) {
+          fprintf(pFileHandle, "%f\n", featureMapFiltered.at<float>(j, k));
+      }
+    }
+    fclose(pFileHandle);
+
+    float fMax = FLT_MIN, fSecondMax = FLT_MIN;
+    int iMaxUnpadPosX = -1, iMaxUnpadPosY = -1, iSecondMaxUnpadPosX = -1, iSecondMaxUnpadPosY = -1;
+    float fDistance = -1.0, fDeltaX = -1., fDeltaY = -1., fMaxUnpadPosX = -1., fMaxUnpadPosY = -1.;
+    for (int j = 0; j < featureMapFiltered.rows; j++) {
+      for (int k = 0; k < featureMapFiltered.cols; k++) {
+          float fValue = featureMapFiltered.at<float>(j, k);
+          if (fValue > fMax) {
+            fMax = fValue;
+            iMaxUnpadPosX = k - KPS_PIXEL_BORDER;
+            iMaxUnpadPosY = j - KPS_PIXEL_BORDER;
+          }
+      }
+    }
+    featureMapFiltered.at<float>(iMaxUnpadPosY + KPS_PIXEL_BORDER, iMaxUnpadPosX + KPS_PIXEL_BORDER) = 0.;
+    for (int j = 0; j < featureMapFiltered.rows; j++) {
+      for (int k = 0; k < featureMapFiltered.cols; k++) {
+          float fValue = featureMapFiltered.at<float>(j, k);
+          if (fValue > fSecondMax)
+          {
+            fSecondMax = fValue;
+            iSecondMaxUnpadPosX = k - KPS_PIXEL_BORDER;
+            iSecondMaxUnpadPosY = j - KPS_PIXEL_BORDER;
+          }
+      }
+    }
+    // printf("featureMapFiltered.at<float>(21, 39) --> %f \n", featureMapFiltered.at<float>(21, 39));
+    // printf("[i] iMaxUnpadPosX, iMaxUnpadPosY, iSecondMaxUnpadPosX, fMax iSecondMaxUnpadPosY fSecondMax --> %d, %d, %d, %f, %d, %d %f \n", i, iMaxUnpadPosX, iMaxUnpadPosY, fMax, iSecondMaxUnpadPosX + KPS_PIXEL_BORDER, iSecondMaxUnpadPosY + KPS_PIXEL_BORDER, fSecondMax);
+    fDeltaX = (float) (iSecondMaxUnpadPosX - iMaxUnpadPosX);
+    fDeltaY = (float) (iSecondMaxUnpadPosY - iMaxUnpadPosY);
+    fDistance = sqrt(pow(fDeltaX, 2) +  pow(fDeltaY, 2));
+    // printf("[i] iMaxUnpadPosX, iMaxUnpadPosY, fDistance --> %d, %d, %d, %f \n", i, iMaxUnpadPosX, iMaxUnpadPosY, fDistance);
+    if (fDistance > 1e-3) {
+      fMaxUnpadPosX = KPS_SHIFTS * fDeltaX / fDistance + (float) iMaxUnpadPosX;
+      fMaxUnpadPosY = KPS_SHIFTS * fDeltaY/ fDistance + (float) iMaxUnpadPosY;
+    }
+    // printf("[i] fMaxUnpadPosX, fMaxUnpadPosY, fDistance --> %d, %f, %f, %f \n", i, fMaxUnpadPosX, fMaxUnpadPosY, fDistance);
+    fMaxUnpadPosX = std::max((float) 0., std::min(fMaxUnpadPosX, (float) (KPS_OUTPUT_SHAPE_W - 1)));
+    fMaxUnpadPosY = std::max((float) 0., std::min(fMaxUnpadPosY, (float) (KPS_OUTPUT_SHAPE_H - 1)));
+    group->results[0].kps[i].x = fMaxUnpadPosX * KPS_STRIDE + 2;
+    group->results[0].kps[i].y = fMaxUnpadPosY * KPS_STRIDE + 2;
+    group->results[0].kps[i].conf = __f16_to_f32_s(pu16Input[i * iGridLen + int(round(fMaxUnpadPosY) + 1e-9) * KPS_OUTPUT_SHAPE_W + int(round(fMaxUnpadPosX) + 1e-9)]) / 255. + 0.5;
+    group->count = 1;
+  }
+  return 0;
+}
+
 int post_process_acfree_6_f16(uint16_t* input0, uint16_t* input1, uint16_t* input2, uint16_t* input3, uint16_t* input4, uint16_t* input5, uint16_t* input6, uint16_t* input7, int model_in_h, int model_in_w, float conf_threshold, float nms_threshold, float scale_w, float scale_h, detect_result_group_t* group)
 {
   static int init = -1;

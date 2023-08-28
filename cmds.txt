@@ -11,6 +11,8 @@ export LD_LIBRARY_PATH=/mnt_manu/opencv_install_rv1126/lib:$LD_LIBRARY_PATH
 ./rknn_yolov5_demo ./model/rv1109_rv1126/acfree.rknn ./model/sylgd_rp.bmp
 ./rknn_yolov5_demo ./model/rv1109_rv1126/player.rknn ./model/player_1280.bmp
 
+/mnt_manu/gcc-arm-8.3-2019.03-x86_64-arm-linux-gnueabihf/arm-linux-gnueabihf/libc/usr/bin/gdbserver --remote-debug 192.168.1.82:8005 ./rknn_yolov5_demo ./model/rv1109_rv1126/player.rknn ./model/player_1280.bmp
+
 # debug
 export NN_LAYER_DUMP=0
 export NN_LAYER_DUMP=1

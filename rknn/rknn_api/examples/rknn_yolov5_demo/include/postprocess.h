@@ -18,10 +18,15 @@
 #define KPS_PIXEL_BORDER 10
 #define KPS_GAUSSIAN_KERNEL 11
 #define KPS_KEYPOINT_NUM 17
+#define KPS_INPUT_SHAPE_H 256
+#define KPS_INPUT_SHAPE_W 192
+#define KPS_WIDTH_HEIGHT_RATIO ((float) KPS_INPUT_SHAPE_W / (float) KPS_INPUT_SHAPE_H)
 #define KPS_OUTPUT_SHAPE_H 64
 #define KPS_OUTPUT_SHAPE_W 48
 #define KPS_STRIDE 4
 #define KPS_SHIFTS 0.25
+#define KPS_X_EXTENTION (0.01 * 9.0)
+#define KPS_Y_EXTENTION (0.015 * 9.0)
 
 typedef struct _POI
 {
@@ -37,6 +42,14 @@ typedef struct _BOX_RECT
     int top;
     int bottom;
 } BOX_RECT;
+
+typedef struct pcBOX_RECT_FLOAT
+{
+    float left;
+    float right;
+    float top;
+    float bottom;
+} BOX_RECT_FLOAT;
 
 typedef struct __detect_result_t
 {

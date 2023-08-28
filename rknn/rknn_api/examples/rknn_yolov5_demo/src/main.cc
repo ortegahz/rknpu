@@ -438,8 +438,70 @@ int main(int argc, char **argv)
     // {
     //   return -1;
     // }
-    cv::Mat img = cv::imread("./model/rsn_align.bmp");
-    input_data = img.data;
+    pcBOX_RECT_FLOAT stBoxRect = {0};
+    stBoxRect.left = 153.53;
+    stBoxRect.top = 231.12;
+    stBoxRect.right = stBoxRect.left + 270.17;
+    stBoxRect.bottom = stBoxRect.top + 403.95;
+    float fCenterX = (stBoxRect.left + stBoxRect.right) / 2.;
+    float fCenterY = (stBoxRect.top + stBoxRect.bottom) / 2.;
+    float fScaleW = (stBoxRect.right - stBoxRect.left) * 1.0 / KPS_PIXEL_STD;
+    float fScaleH = (stBoxRect.bottom - stBoxRect.top) * 1.0 / KPS_PIXEL_STD;
+    fScaleW *= (1. + KPS_X_EXTENTION);
+    fScaleH *= (1. + KPS_Y_EXTENTION);
+    // printf("fScaleW, fScaleH --> %f, %f \n", fScaleW, fScaleH);
+    // printf("KPS_INPUT_SHAPE_W / KPS_INPUT_SHAPE_H  * fScaleH -- > %f \n", (KPS_INPUT_SHAPE_W / KPS_INPUT_SHAPE_H  * fScaleH));
+    if (fScaleW > KPS_WIDTH_HEIGHT_RATIO  * fScaleH) {
+      printf("true \n");
+      fScaleH = fScaleW * 1.0 / KPS_WIDTH_HEIGHT_RATIO;
+    }
+    else {
+      printf("false \n");
+      fScaleW = fScaleH * 1.0 * KPS_WIDTH_HEIGHT_RATIO;
+    }
+    printf("fScaleW, fScaleH --> %f, %f \n", fScaleW, fScaleH);
+    float fScaleWT = fScaleW * KPS_PIXEL_STD;
+    float fScaleHT = fScaleH * KPS_PIXEL_STD;
+    float fSrcW = fScaleWT;
+    float fDstW = KPS_INPUT_SHAPE_W;
+    float fDstH = KPS_INPUT_SHAPE_H;
+
+    cv::Point2f srcTri[3];
+    cv::Point2f dstTri[3];
+    srcTri[0] = cv::Point2f(fCenterX, fCenterY);
+    srcTri[1] = cv::Point2f(fCenterX, fCenterY - fSrcW * 0.5);
+    srcTri[2] = cv::Point2f(fCenterX - fSrcW * 0.5, fCenterY - fSrcW * 0.5);
+    dstTri[0] = cv::Point2f(fDstW * 0.5, fDstH * 0.5);
+    dstTri[1] = cv::Point2f(fDstW * 0.5, fDstH * 0.5 - fDstW * 0.5);
+    dstTri[2] = cv::Point2f(fDstW * 0.5 - fDstW * 0.5, fDstH * 0.5 - fDstW * 0.5);
+    printf("srcTri[0] --> %f, %f \n", fCenterX, fCenterY);
+    printf("srcTri[1] --> %f, %f \n", fCenterX, fCenterY - fSrcW * 0.5);
+    printf("srcTri[2] --> %f, %f \n", fCenterX - fSrcW * 0.5, fCenterY - fSrcW * 0.5);
+    printf("dstTri[0] --> %f, %f \n", fDstW * 0.5, fDstH * 0.5);
+    printf("dstTri[1] --> %f, %f \n", fDstW * 0.5, fDstH * 0.5 - fDstW * 0.5);
+    printf("dstTri[2] --> %f, %f \n", fDstW * 0.5 - fDstW * 0.5, fDstH * 0.5 - fDstW * 0.5);
+    cv::Mat Trans(2, 3, CV_32FC1);
+    Trans = cv::getAffineTransform(srcTri, dstTri);
+
+    // cv::Mat img = cv::imread("./model/rsn_align.bmp");
+    cv::Mat Img = cv::imread("./model/rsn.bmp");
+    cv::Mat ImgWA;
+    cv::warpAffine(Img, ImgWA, Trans, cv::Size(KPS_INPUT_SHAPE_W, KPS_INPUT_SHAPE_H));
+    cv::imwrite("./ImgWA.bmp", ImgWA);
+    input_data = ImgWA.data;
+
+    // save data
+    char acSavePath[512];
+    sprintf(acSavePath, "./rknn_output_input_data.txt");
+    FILE *pFileHandle = fopen(acSavePath, "w");
+    for (int i = 0; i < KPS_INPUT_SHAPE_H; i++) {
+      for (int j = 0; j < KPS_INPUT_SHAPE_W; j++) {
+        for (int k = 0; k < 3; k++) {
+                fprintf(pFileHandle, "%u\n", input_data[i * KPS_INPUT_SHAPE_W * 3 + j * 3 + k]);
+        }
+      }
+    }
+    fclose(pFileHandle);
 
     rknn_input inputs[1];
     memset(inputs, 0, sizeof(inputs));

@@ -77,3 +77,5 @@ set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install/rknn_yolov5_demo)
 install(TARGETS rknn_yolov5_demo DESTINATION ./)
 install(DIRECTORY model DESTINATION ./)
 install(PROGRAMS ${RKNN_API_LIB} DESTINATION lib)
+
+# SET(CMAKE_BUILD_TYPE "Debug")

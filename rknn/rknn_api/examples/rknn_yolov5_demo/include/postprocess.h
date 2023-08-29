@@ -86,7 +86,7 @@ typedef struct _kps_result_group_t
     kps_result_t results[OBJ_NUMB_MAX_SIZE];
 } kps_result_group_t;
 
-int post_process_kps_f16_wrapper(rknn_context ctx_kps, cv::Mat *Img, pcBOX_RECT_FLOAT stBoxRect, void *resize_buf, rknn_tensor_attr *output_attrs);
+int post_process_kps_f16_wrapper(rknn_context ctx_kps, cv::Mat *Img, pcBOX_RECT_FLOAT stBoxRect, void *resize_buf, rknn_tensor_attr *output_attrs, kps_result_group_t *pKps_result_group);
 
 int post_process_kps_f16(uint16_t* input, kps_result_group_t *group);
 

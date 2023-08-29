@@ -767,7 +767,7 @@ int post_process_kps_f16(uint16_t *pu16Input, kps_result_group_t *group)
   return 0;
 }
 
-int post_process_kps_f16_wrapper(rknn_context ctx_kps, cv::Mat *Img, pcBOX_RECT_FLOAT stBoxRect, void *resize_buf, rknn_tensor_attr *output_attrs)
+int post_process_kps_f16_wrapper(rknn_context ctx_kps, cv::Mat *Img, pcBOX_RECT_FLOAT stBoxRect, void *resize_buf, rknn_tensor_attr *output_attrs, kps_result_group_t *pKps_result_group)
 {
     // Load image
     // CImg<unsigned char> img_kps("./model/rsn_align.bmp");
@@ -878,7 +878,6 @@ int post_process_kps_f16_wrapper(rknn_context ctx_kps, cv::Mat *Img, pcBOX_RECT_
       fclose(fp);
     }
 
-    kps_result_group_t kps_result_group;
     std::vector<float> out_scales;
     std::vector<uint32_t> out_zps;
     for (int i = 0; i < 1; ++i)
@@ -886,13 +885,13 @@ int post_process_kps_f16_wrapper(rknn_context ctx_kps, cv::Mat *Img, pcBOX_RECT_
       out_scales.push_back(output_attrs[i].scale);
       out_zps.push_back(output_attrs[i].zp);
     }
-    post_process_kps_f16((uint16_t *)outputs[0].buf, &kps_result_group);
+    post_process_kps_f16((uint16_t *)outputs[0].buf, pKps_result_group);
 
   // Save KPS Parser Results
   FILE * fid = fopen("npu_parser_results_kps.txt", "w");
   assert(fid != NULL);
-  for (int i = 0; i < kps_result_group.count; i++) {
-    kps_result_t* kps_result = &(kps_result_group.results[i]);
+  for (int i = 0; i < pKps_result_group->count; i++) {
+    kps_result_t* kps_result = &(pKps_result_group->results[i]);
     for (int j = 0; j < KPS_KEYPOINT_NUM; j++) {
       float x = (float) kps_result->kps[j].x;
       float y = (float) kps_result->kps[j].y;

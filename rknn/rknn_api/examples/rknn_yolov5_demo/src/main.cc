@@ -452,7 +452,9 @@ int main(int argc, char **argv)
     stBoxRect.right = stBoxRect.left + 270.17;
     stBoxRect.bottom = stBoxRect.top + 403.95;
 
-    post_process_kps_f16_wrapper(ctx_kps, &Img, stBoxRect, resize_buf, output_attrs);
+    kps_result_group_t kps_result_group;
+
+    post_process_kps_f16_wrapper(ctx_kps, &Img, stBoxRect, resize_buf, output_attrs, &kps_result_group);
 
     // init rga context
     // RGA_init(&rga_ctx_kps);

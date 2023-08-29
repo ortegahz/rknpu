@@ -695,7 +695,7 @@ int post_process_acfree_f16(uint16_t* input0, uint16_t* input1, uint16_t* input2
   return 0;
 }
 
-int post_process_kps_f16(uint16_t *pu16Input, kps_result_group_t *group)
+int post_process_kps_f16(uint16_t *pu16Input, float fCenterX, float fCenterY, float fScaleWT, float fScaleHT, kps_result_group_t *group)
 {
   int iGridLen = KPS_OUTPUT_SHAPE_H * KPS_OUTPUT_SHAPE_W;
   for (int i = 0; i < KPS_KEYPOINT_NUM; i++) {
@@ -759,9 +759,22 @@ int post_process_kps_f16(uint16_t *pu16Input, kps_result_group_t *group)
     // printf("[i] fMaxUnpadPosX, fMaxUnpadPosY, fDistance --> %d, %f, %f, %f \n", i, fMaxUnpadPosX, fMaxUnpadPosY, fDistance);
     fMaxUnpadPosX = std::max((float) 0., std::min(fMaxUnpadPosX, (float) (KPS_OUTPUT_SHAPE_W - 1)));
     fMaxUnpadPosY = std::max((float) 0., std::min(fMaxUnpadPosY, (float) (KPS_OUTPUT_SHAPE_H - 1)));
-    group->results[0].kps[i].x = fMaxUnpadPosX * KPS_STRIDE + 2;
-    group->results[0].kps[i].y = fMaxUnpadPosY * KPS_STRIDE + 2;
-    group->results[0].kps[i].conf = __f16_to_f32_s(pu16Input[i * iGridLen + int(round(fMaxUnpadPosY) + 1e-9) * KPS_OUTPUT_SHAPE_W + int(round(fMaxUnpadPosX) + 1e-9)]) / 255. + 0.5;
+
+    float fConf = __f16_to_f32_s(pu16Input[i * iGridLen + int(round(fMaxUnpadPosY) + 1e-9) * KPS_OUTPUT_SHAPE_W + int(round(fMaxUnpadPosX) + 1e-9)]) / 255. + 0.5;
+
+    fMaxUnpadPosX = fMaxUnpadPosX * KPS_STRIDE + 2;
+    fMaxUnpadPosY = fMaxUnpadPosY * KPS_STRIDE + 2;
+
+    // printf("[i] fMaxUnpadPosX, fMaxUnpadPosY, fScaleWT, fScaleHT, fCenterX, fCenterY --> %d, %f, %f, %f, %f, %f, %f \n", i, fMaxUnpadPosX, fMaxUnpadPosY, fScaleWT, fScaleHT, fCenterX, fCenterY);
+    fMaxUnpadPosX = fMaxUnpadPosX / (float) KPS_INPUT_SHAPE_W * fScaleWT + fCenterX - fScaleWT * 0.5;
+    fMaxUnpadPosY = fMaxUnpadPosY / (float) KPS_INPUT_SHAPE_H * fScaleHT + fCenterY - fScaleHT * 0.5;
+
+    // printf("[i] fMaxUnpadPosX, fMaxUnpadPosY --> %d, %f, %f \n", i, fMaxUnpadPosX, fMaxUnpadPosY);
+    // printf("[i] fConf --> %d, %f \n", i, fConf);
+
+    group->results[0].kps[i].x = fMaxUnpadPosX;
+    group->results[0].kps[i].y = fMaxUnpadPosY;
+    group->results[0].kps[i].conf = fConf;
     group->count = 1;
   }
   return 0;
@@ -885,7 +898,7 @@ int post_process_kps_f16_wrapper(rknn_context ctx_kps, cv::Mat *Img, pcBOX_RECT_
       out_scales.push_back(output_attrs[i].scale);
       out_zps.push_back(output_attrs[i].zp);
     }
-    post_process_kps_f16((uint16_t *)outputs[0].buf, pKps_result_group);
+    post_process_kps_f16((uint16_t *)outputs[0].buf, fCenterX, fCenterY, fScaleWT, fScaleHT, pKps_result_group);
 
   // Save KPS Parser Results
   FILE * fid = fopen("npu_parser_results_kps.txt", "w");
@@ -897,6 +910,7 @@ int post_process_kps_f16_wrapper(rknn_context ctx_kps, cv::Mat *Img, pcBOX_RECT_
       float y = (float) kps_result->kps[j].y;
       float conf = kps_result->kps[j].conf;
       fprintf(fid, "%f, %f,  %f \n", x, y, conf);
+      // fprintf(fid, "%f, %f \n", x, y);
     }
   }
   fclose(fid);

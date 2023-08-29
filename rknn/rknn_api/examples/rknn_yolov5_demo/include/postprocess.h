@@ -88,7 +88,7 @@ typedef struct _kps_result_group_t
 
 int post_process_kps_f16_wrapper(rknn_context ctx_kps, cv::Mat *Img, pcBOX_RECT_FLOAT stBoxRect, void *resize_buf, rknn_tensor_attr *output_attrs, kps_result_group_t *pKps_result_group);
 
-int post_process_kps_f16(uint16_t* input, kps_result_group_t *group);
+int post_process_kps_f16(uint16_t *pu16Input, float fCenterX, float fCenterY, float fScaleWT, float fScaleHT, kps_result_group_t *group);
 
 int post_process_player_6(uint8_t* input0, uint8_t* input1, uint8_t* input2, uint8_t* input3, uint8_t* input4, int model_in_h, int model_in_w, float conf_threshold, float nms_threshold, float scale_w, float scale_h, std::vector<uint32_t>& qnt_zps, std::vector<float>& qnt_scales, detect_result_group_t* group);
 

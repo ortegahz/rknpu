@@ -767,6 +767,144 @@ int post_process_kps_f16(uint16_t *pu16Input, kps_result_group_t *group)
   return 0;
 }
 
+int post_process_kps_f16_wrapper(rknn_context ctx_kps, cv::Mat *Img, pcBOX_RECT_FLOAT stBoxRect, void *resize_buf, rknn_tensor_attr *output_attrs)
+{
+    // Load image
+    // CImg<unsigned char> img_kps("./model/rsn_align.bmp");
+    unsigned char *input_data = NULL;
+    // input_data = load_image("./model/rsn_align.bmp", &img_height_kps, &img_width_kps, &img_channel_kps, &input_attrs[0]);
+    // if (!input_data)
+    // {
+    //   return -1;
+    // }
+
+    float fCenterX = (stBoxRect.left + stBoxRect.right) / 2.;
+    float fCenterY = (stBoxRect.top + stBoxRect.bottom) / 2.;
+    float fScaleW = (stBoxRect.right - stBoxRect.left) * 1.0 / KPS_PIXEL_STD;
+    float fScaleH = (stBoxRect.bottom - stBoxRect.top) * 1.0 / KPS_PIXEL_STD;
+    fScaleW *= (1. + KPS_X_EXTENTION);
+    fScaleH *= (1. + KPS_Y_EXTENTION);
+    // printf("fScaleW, fScaleH --> %f, %f \n", fScaleW, fScaleH);
+    // printf("KPS_INPUT_SHAPE_W / KPS_INPUT_SHAPE_H  * fScaleH -- > %f \n", (KPS_INPUT_SHAPE_W / KPS_INPUT_SHAPE_H  * fScaleH));
+    if (fScaleW > KPS_WIDTH_HEIGHT_RATIO  * fScaleH) {
+      printf("true \n");
+      fScaleH = fScaleW * 1.0 / KPS_WIDTH_HEIGHT_RATIO;
+    }
+    else {
+      printf("false \n");
+      fScaleW = fScaleH * 1.0 * KPS_WIDTH_HEIGHT_RATIO;
+    }
+    printf("fScaleW, fScaleH --> %f, %f \n", fScaleW, fScaleH);
+    float fScaleWT = fScaleW * KPS_PIXEL_STD;
+    float fScaleHT = fScaleH * KPS_PIXEL_STD;
+    float fSrcW = fScaleWT;
+    float fDstW = KPS_INPUT_SHAPE_W;
+    float fDstH = KPS_INPUT_SHAPE_H;
+
+    cv::Point2f srcTri[3];
+    cv::Point2f dstTri[3];
+    srcTri[0] = cv::Point2f(fCenterX, fCenterY);
+    srcTri[1] = cv::Point2f(fCenterX, fCenterY - fSrcW * 0.5);
+    srcTri[2] = cv::Point2f(fCenterX - fSrcW * 0.5, fCenterY - fSrcW * 0.5);
+    dstTri[0] = cv::Point2f(fDstW * 0.5, fDstH * 0.5);
+    dstTri[1] = cv::Point2f(fDstW * 0.5, fDstH * 0.5 - fDstW * 0.5);
+    dstTri[2] = cv::Point2f(fDstW * 0.5 - fDstW * 0.5, fDstH * 0.5 - fDstW * 0.5);
+    printf("srcTri[0] --> %f, %f \n", fCenterX, fCenterY);
+    printf("srcTri[1] --> %f, %f \n", fCenterX, fCenterY - fSrcW * 0.5);
+    printf("srcTri[2] --> %f, %f \n", fCenterX - fSrcW * 0.5, fCenterY - fSrcW * 0.5);
+    printf("dstTri[0] --> %f, %f \n", fDstW * 0.5, fDstH * 0.5);
+    printf("dstTri[1] --> %f, %f \n", fDstW * 0.5, fDstH * 0.5 - fDstW * 0.5);
+    printf("dstTri[2] --> %f, %f \n", fDstW * 0.5 - fDstW * 0.5, fDstH * 0.5 - fDstW * 0.5);
+    cv::Mat Trans(2, 3, CV_32FC1);
+    Trans = cv::getAffineTransform(srcTri, dstTri);
+
+    // cv::Mat img = cv::imread("./model/rsn_align.bmp");
+    // cv::Mat Img = cv::imread("./model/rsn.bmp");
+    cv::Mat ImgWA;
+    cv::warpAffine(*Img, ImgWA, Trans, cv::Size(KPS_INPUT_SHAPE_W, KPS_INPUT_SHAPE_H));
+    cv::imwrite("./ImgWA.bmp", ImgWA);
+    input_data = ImgWA.data;
+
+    // save data
+    char acSavePath[512];
+    sprintf(acSavePath, "./rknn_output_input_data.txt");
+    FILE *pFileHandle = fopen(acSavePath, "w");
+    for (int i = 0; i < KPS_INPUT_SHAPE_H; i++) {
+      for (int j = 0; j < KPS_INPUT_SHAPE_W; j++) {
+        for (int k = 0; k < 3; k++) {
+                fprintf(pFileHandle, "%u\n", input_data[i * KPS_INPUT_SHAPE_W * 3 + j * 3 + k]);
+        }
+      }
+    }
+    fclose(pFileHandle);
+
+
+    rknn_input inputs[1];
+    memset(inputs, 0, sizeof(inputs));
+    inputs[0].index = 0;
+    inputs[0].type = RKNN_TENSOR_UINT8;
+    inputs[0].size = KPS_INPUT_SHAPE_H * KPS_INPUT_SHAPE_W * 3;
+    inputs[0].fmt = RKNN_TENSOR_NHWC;
+    inputs[0].pass_through = 0;
+
+    memcpy(resize_buf, input_data, KPS_INPUT_SHAPE_H * KPS_INPUT_SHAPE_W * 3);
+
+    inputs[0].buf = resize_buf;
+    rknn_inputs_set(ctx_kps, 1, inputs);
+
+    rknn_output outputs[1];
+    memset(outputs, 0, sizeof(outputs));
+    for (int i = 0; i < 1; i++)
+    {
+      outputs[i].want_float = 0;
+    }
+
+    int ret = rknn_run(ctx_kps, NULL);
+    ret = rknn_outputs_get(ctx_kps, 1, outputs, NULL);
+
+    // save float outputs for debugging
+    for (int i = 0; i < 1; ++i)
+    {
+      char path[512];
+      sprintf(path, "./rknn_output_real_kps_nq_%d.txt", i);
+      FILE *fp = fopen(path, "w");
+      uint16_t *output = (uint16_t *)outputs[i].buf;
+      uint32_t n_elems = output_attrs[i].n_elems;
+      for (int j = 0; j < n_elems; j++)
+      {
+        float value = __f16_to_f32_s(output[j]);
+        fprintf(fp, "%f\n", value);
+      }
+      fclose(fp);
+    }
+
+    kps_result_group_t kps_result_group;
+    std::vector<float> out_scales;
+    std::vector<uint32_t> out_zps;
+    for (int i = 0; i < 1; ++i)
+    {
+      out_scales.push_back(output_attrs[i].scale);
+      out_zps.push_back(output_attrs[i].zp);
+    }
+    post_process_kps_f16((uint16_t *)outputs[0].buf, &kps_result_group);
+
+  // Save KPS Parser Results
+  FILE * fid = fopen("npu_parser_results_kps.txt", "w");
+  assert(fid != NULL);
+  for (int i = 0; i < kps_result_group.count; i++) {
+    kps_result_t* kps_result = &(kps_result_group.results[i]);
+    for (int j = 0; j < KPS_KEYPOINT_NUM; j++) {
+      float x = (float) kps_result->kps[j].x;
+      float y = (float) kps_result->kps[j].y;
+      float conf = kps_result->kps[j].conf;
+      fprintf(fid, "%f, %f,  %f \n", x, y, conf);
+    }
+  }
+  fclose(fid);
+
+  return 0;
+}
+
 int post_process_acfree_6_f16(uint16_t* input0, uint16_t* input1, uint16_t* input2, uint16_t* input3, uint16_t* input4, uint16_t* input5, uint16_t* input6, uint16_t* input7, int model_in_h, int model_in_w, float conf_threshold, float nms_threshold, float scale_w, float scale_h, detect_result_group_t* group)
 {
   static int init = -1;

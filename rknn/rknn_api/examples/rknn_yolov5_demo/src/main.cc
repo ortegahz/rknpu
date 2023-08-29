@@ -38,7 +38,6 @@
 #include "drm_func.h"
 #include "postprocess.h"
 #include "rga_func.h"
-#include "rknn_api.h"
 
 #define PERF_WITH_POST 0
 #define SAVE_OUTPUTS 0
@@ -430,86 +429,15 @@ int main(int argc, char **argv)
 
     printf("kps model input height=%d, width=%d, channel=%d\n", height, width, channel);
 
-    // Load image
-    // CImg<unsigned char> img_kps("./model/rsn_align.bmp");
-    unsigned char *input_data = NULL;
-    // input_data = load_image("./model/rsn_align.bmp", &img_height_kps, &img_width_kps, &img_channel_kps, &input_attrs[0]);
-    // if (!input_data)
-    // {
-    //   return -1;
-    // }
-    pcBOX_RECT_FLOAT stBoxRect = {0};
-    stBoxRect.left = 153.53;
-    stBoxRect.top = 231.12;
-    stBoxRect.right = stBoxRect.left + 270.17;
-    stBoxRect.bottom = stBoxRect.top + 403.95;
-    float fCenterX = (stBoxRect.left + stBoxRect.right) / 2.;
-    float fCenterY = (stBoxRect.top + stBoxRect.bottom) / 2.;
-    float fScaleW = (stBoxRect.right - stBoxRect.left) * 1.0 / KPS_PIXEL_STD;
-    float fScaleH = (stBoxRect.bottom - stBoxRect.top) * 1.0 / KPS_PIXEL_STD;
-    fScaleW *= (1. + KPS_X_EXTENTION);
-    fScaleH *= (1. + KPS_Y_EXTENTION);
-    // printf("fScaleW, fScaleH --> %f, %f \n", fScaleW, fScaleH);
-    // printf("KPS_INPUT_SHAPE_W / KPS_INPUT_SHAPE_H  * fScaleH -- > %f \n", (KPS_INPUT_SHAPE_W / KPS_INPUT_SHAPE_H  * fScaleH));
-    if (fScaleW > KPS_WIDTH_HEIGHT_RATIO  * fScaleH) {
-      printf("true \n");
-      fScaleH = fScaleW * 1.0 / KPS_WIDTH_HEIGHT_RATIO;
-    }
-    else {
-      printf("false \n");
-      fScaleW = fScaleH * 1.0 * KPS_WIDTH_HEIGHT_RATIO;
-    }
-    printf("fScaleW, fScaleH --> %f, %f \n", fScaleW, fScaleH);
-    float fScaleWT = fScaleW * KPS_PIXEL_STD;
-    float fScaleHT = fScaleH * KPS_PIXEL_STD;
-    float fSrcW = fScaleWT;
-    float fDstW = KPS_INPUT_SHAPE_W;
-    float fDstH = KPS_INPUT_SHAPE_H;
-
-    cv::Point2f srcTri[3];
-    cv::Point2f dstTri[3];
-    srcTri[0] = cv::Point2f(fCenterX, fCenterY);
-    srcTri[1] = cv::Point2f(fCenterX, fCenterY - fSrcW * 0.5);
-    srcTri[2] = cv::Point2f(fCenterX - fSrcW * 0.5, fCenterY - fSrcW * 0.5);
-    dstTri[0] = cv::Point2f(fDstW * 0.5, fDstH * 0.5);
-    dstTri[1] = cv::Point2f(fDstW * 0.5, fDstH * 0.5 - fDstW * 0.5);
-    dstTri[2] = cv::Point2f(fDstW * 0.5 - fDstW * 0.5, fDstH * 0.5 - fDstW * 0.5);
-    printf("srcTri[0] --> %f, %f \n", fCenterX, fCenterY);
-    printf("srcTri[1] --> %f, %f \n", fCenterX, fCenterY - fSrcW * 0.5);
-    printf("srcTri[2] --> %f, %f \n", fCenterX - fSrcW * 0.5, fCenterY - fSrcW * 0.5);
-    printf("dstTri[0] --> %f, %f \n", fDstW * 0.5, fDstH * 0.5);
-    printf("dstTri[1] --> %f, %f \n", fDstW * 0.5, fDstH * 0.5 - fDstW * 0.5);
-    printf("dstTri[2] --> %f, %f \n", fDstW * 0.5 - fDstW * 0.5, fDstH * 0.5 - fDstW * 0.5);
-    cv::Mat Trans(2, 3, CV_32FC1);
-    Trans = cv::getAffineTransform(srcTri, dstTri);
-
-    // cv::Mat img = cv::imread("./model/rsn_align.bmp");
     cv::Mat Img = cv::imread("./model/rsn.bmp");
-    cv::Mat ImgWA;
-    cv::warpAffine(Img, ImgWA, Trans, cv::Size(KPS_INPUT_SHAPE_W, KPS_INPUT_SHAPE_H));
-    cv::imwrite("./ImgWA.bmp", ImgWA);
-    input_data = ImgWA.data;
 
-    // save data
-    char acSavePath[512];
-    sprintf(acSavePath, "./rknn_output_input_data.txt");
-    FILE *pFileHandle = fopen(acSavePath, "w");
-    for (int i = 0; i < KPS_INPUT_SHAPE_H; i++) {
-      for (int j = 0; j < KPS_INPUT_SHAPE_W; j++) {
-        for (int k = 0; k < 3; k++) {
-                fprintf(pFileHandle, "%u\n", input_data[i * KPS_INPUT_SHAPE_W * 3 + j * 3 + k]);
-        }
-      }
-    }
-    fclose(pFileHandle);
-
-    rknn_input inputs[1];
-    memset(inputs, 0, sizeof(inputs));
-    inputs[0].index = 0;
-    inputs[0].type = RKNN_TENSOR_UINT8;
-    inputs[0].size = width * height * channel;
-    inputs[0].fmt = RKNN_TENSOR_NHWC;
-    inputs[0].pass_through = 0;
+    // rknn_input inputs[1];
+    // memset(inputs, 0, sizeof(inputs));
+    // inputs[0].index = 0;
+    // inputs[0].type = RKNN_TENSOR_UINT8;
+    // inputs[0].size = width * height * channel;
+    // inputs[0].fmt = RKNN_TENSOR_NHWC;
+    // inputs[0].pass_through = 0;
 
     // DRM alloc buffer
     // drm_fd_kps = drm_init(&drm_ctx_kps);
@@ -518,74 +446,101 @@ int main(int argc, char **argv)
     void *resize_buf = malloc(height * width * channel);
     // unsigned char *p = (unsigned char *) resize_buf;
 
+    pcBOX_RECT_FLOAT stBoxRect = {0};
+    stBoxRect.left = 153.53;
+    stBoxRect.top = 231.12;
+    stBoxRect.right = stBoxRect.left + 270.17;
+    stBoxRect.bottom = stBoxRect.top + 403.95;
+
+    post_process_kps_f16_wrapper(ctx_kps, &Img, stBoxRect, resize_buf, output_attrs);
+
     // init rga context
-    RGA_init(&rga_ctx_kps);
+    // RGA_init(&rga_ctx_kps);
     // img_resize_slow_kps(&rga_ctx_kps, drm_buf_kps, img_width_kps, img_height_kps, resize_buf, width, height);
-    memcpy(resize_buf, input_data, height * width * channel);
+
+    // memcpy(resize_buf, input_data, height * width * channel);
+
     // cv::Mat img_save = img;
     // img_save.data = (unsigned char *) resize_buf;
     // cv::imwrite("./img_save.bmp", img_save);
-    inputs[0].buf = resize_buf;
-    gettimeofday(&start_time, NULL);
-    rknn_inputs_set(ctx_kps, io_num.n_input, inputs);
 
-    rknn_output outputs[io_num.n_output];
-    memset(outputs, 0, sizeof(outputs));
-    for (int i = 0; i < io_num.n_output; i++)
+    // inputs[0].buf = resize_buf;
+    // gettimeofday(&start_time, NULL);
+    // rknn_inputs_set(ctx_kps, io_num.n_input, inputs);
+
+    // rknn_output outputs[io_num.n_output];
+    // memset(outputs, 0, sizeof(outputs));
+    // for (int i = 0; i < io_num.n_output; i++)
+    // {
+    //   outputs[i].want_float = 0;
+    // }
+
+    // ret = rknn_run(ctx_kps, NULL);
+    // ret = rknn_outputs_get(ctx_kps, io_num.n_output, outputs, NULL);
+    // gettimeofday(&stop_time, NULL);
+    // printf("kps once run use %f ms\n", (__get_us(stop_time) - __get_us(start_time)) / 1000);
+
+    // float scale_w = (float)width / img_width_kps;
+    // float scale_h = (float)height / img_height_kps;
+
+    // kps_result_group_t kps_result_group;
+    // std::vector<float> out_scales;
+    // std::vector<uint32_t> out_zps;
+    // for (int i = 0; i < io_num.n_output; ++i)
+    // {
+    //   out_scales.push_back(output_attrs[i].scale);
+    //   out_zps.push_back(output_attrs[i].zp);
+    // }
+
+// #if SAVE_F16_OUTPUTS_KPS
+//     // save float outputs for debugging
+//     for (int i = 0; i < io_num.n_output; ++i)
+//     {
+//       char path[512];
+//       sprintf(path, "./rknn_output_real_kps_nq_%d.txt", i);
+//       FILE *fp = fopen(path, "w");
+//       uint16_t *output = (uint16_t *)outputs[i].buf;
+//       uint32_t n_elems = output_attrs[i].n_elems;
+//       for (int j = 0; j < n_elems; j++)
+//       {
+//         float value = __f16_to_f32_s(output[j]);
+//         fprintf(fp, "%f\n", value);
+//       }
+//       fclose(fp);
+//     }
+// #endif
+
+  // post_process_kps_f16((uint16_t *)outputs[0].buf, &kps_result_group);
+
+  // // Save KPS Parser Results
+  // FILE * fid = fopen("npu_parser_results_kps.txt", "w");
+  // assert(fid != NULL);
+  // for (int i = 0; i < kps_result_group.count; i++) {
+  //   kps_result_t* kps_result = &(kps_result_group.results[i]);
+  //   for (int j = 0; j < KPS_KEYPOINT_NUM; j++) {
+  //     float x = (float) kps_result->kps[j].x;
+  //     float y = (float) kps_result->kps[j].y;
+  //     float conf = kps_result->kps[j].conf;
+  //     fprintf(fid, "%f, %f,  %f \n", x, y, conf);
+  //   }
+  // }
+  // fclose(fid);
+
+    // release
+    ret = rknn_destroy(ctx_kps);
+    // drm_buf_destroy(&drm_ctx, drm_fd, buf_fd, handle, drm_buf, actual_size);
+    // drm_deinit(&drm_ctx, drm_fd);
+    // RGA_deinit(&rga_ctx);
+    if (model_data)
     {
-      outputs[i].want_float = 0;
+      free(model_data);
     }
 
-    ret = rknn_run(ctx_kps, NULL);
-    ret = rknn_outputs_get(ctx_kps, io_num.n_output, outputs, NULL);
-    gettimeofday(&stop_time, NULL);
-    printf("kps once run use %f ms\n", (__get_us(stop_time) - __get_us(start_time)) / 1000);
-
-    float scale_w = (float)width / img_width_kps;
-    float scale_h = (float)height / img_height_kps;
-
-    kps_result_group_t kps_result_group;
-    std::vector<float> out_scales;
-    std::vector<uint32_t> out_zps;
-    for (int i = 0; i < io_num.n_output; ++i)
+    if (resize_buf)
     {
-      out_scales.push_back(output_attrs[i].scale);
-      out_zps.push_back(output_attrs[i].zp);
+      free(resize_buf);
     }
-
-#if SAVE_F16_OUTPUTS_KPS
-    // save float outputs for debugging
-    for (int i = 0; i < io_num.n_output; ++i)
-    {
-      char path[512];
-      sprintf(path, "./rknn_output_real_kps_nq_%d.txt", i);
-      FILE *fp = fopen(path, "w");
-      uint16_t *output = (uint16_t *)outputs[i].buf;
-      uint32_t n_elems = output_attrs[i].n_elems;
-      for (int j = 0; j < n_elems; j++)
-      {
-        float value = __f16_to_f32_s(output[j]);
-        fprintf(fp, "%f\n", value);
-      }
-      fclose(fp);
-    }
-#endif
-
-    post_process_kps_f16((uint16_t *)outputs[0].buf, &kps_result_group);
-
-  // Save KPS Parser Results
-  FILE * fid = fopen("npu_parser_results_kps.txt", "w");
-  assert(fid != NULL);
-  for (int i = 0; i < kps_result_group.count; i++) {
-    kps_result_t* kps_result = &(kps_result_group.results[i]);
-    for (int j = 0; j < KPS_KEYPOINT_NUM; j++) {
-      float x = (float) kps_result->kps[j].x;
-      float y = (float) kps_result->kps[j].y;
-      float conf = kps_result->kps[j].conf;
-      fprintf(fid, "%f, %f,  %f \n", x, y, conf);
-    }
-  }
-  fclose(fid);
+    // stbi_image_free(input_data);
 
     return 0;
   }
@@ -851,6 +806,7 @@ int main(int argc, char **argv)
 
   // release
   ret = rknn_destroy(ctx);
+  ret = rknn_destroy(ctx_kps);
   drm_buf_destroy(&drm_ctx, drm_fd, buf_fd, handle, drm_buf, actual_size);
 
   drm_deinit(&drm_ctx, drm_fd);

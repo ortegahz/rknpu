@@ -1145,7 +1145,7 @@ int post_process_player_6(uint8_t* input0, uint8_t* input1, uint8_t* input2, uin
   return 0;
 }
 
-int post_process_player_6_f16(uint16_t* input0, uint16_t* input1, uint16_t* input2, uint16_t* input3, uint16_t* input4, int model_in_h, int model_in_w, float conf_threshold, float nms_threshold, float scale_w, float scale_h, detect_result_group_t* group)
+int post_process_player_6_f16(uint16_t* input0, uint16_t* input1, uint16_t* input2, uint16_t* input3, uint16_t* input4, int model_in_h, int model_in_w, float conf_threshold, float nms_threshold, float scale_w, float scale_h, detect_result_group_float_t* group)
 {
   static int init = -1;
   if (init == -1) {
@@ -1157,7 +1157,7 @@ int post_process_player_6_f16(uint16_t* input0, uint16_t* input1, uint16_t* inpu
 
     init = 0;
   }
-  memset(group, 0, sizeof(detect_result_group_t));
+  memset(group, 0, sizeof(detect_result_group_float_t));
 
   std::vector<float> filterBoxes;
   std::vector<float> objProbs;
@@ -1248,13 +1248,13 @@ int post_process_player_6_f16(uint16_t* input0, uint16_t* input1, uint16_t* inpu
 
     // printf("pp_x pp_y pp_c --> %f, %f, %f\n", poi_x, poi_y, poi_c);
 
-    group->results[last_count].box.left   = (int)(clamp(x1, 0, model_in_w) / scale_w);
-    group->results[last_count].box.top    = (int)(clamp(y1, 0, model_in_h) / scale_h);
-    group->results[last_count].box.right  = (int)(clamp(x2, 0, model_in_w) / scale_w);
-    group->results[last_count].box.bottom = (int)(clamp(y2, 0, model_in_h) / scale_h);
+    group->results[last_count].box.left   = clamp(x1, 0, model_in_w) / scale_w;
+    group->results[last_count].box.top    = clamp(y1, 0, model_in_h) / scale_h;
+    group->results[last_count].box.right  = clamp(x2, 0, model_in_w) / scale_w;
+    group->results[last_count].box.bottom = clamp(y2, 0, model_in_h) / scale_h;
     group->results[last_count].prop       = obj_conf;
-    group->results[last_count].poi.x = int(poi_x / scale_w);
-    group->results[last_count].poi.y = int(poi_y / scale_h);
+    group->results[last_count].poi.x = poi_x / scale_w;
+    group->results[last_count].poi.y = poi_y / scale_h;
     group->results[last_count].poi.conf = poi_c;
     char* label                           = labels[id];
     strncpy(group->results[last_count].name, label, OBJ_NAME_MAX_SIZE);

@@ -429,8 +429,6 @@ int main(int argc, char **argv)
 
     printf("kps model input height=%d, width=%d, channel=%d\n", height, width, channel);
 
-    cv::Mat Img = cv::imread("./model/rsn.bmp");
-
     // rknn_input inputs[1];
     // memset(inputs, 0, sizeof(inputs));
     // inputs[0].index = 0;
@@ -446,11 +444,19 @@ int main(int argc, char **argv)
     void *resize_buf = malloc(height * width * channel);
     // unsigned char *p = (unsigned char *) resize_buf;
 
+    // cv::Mat Img = cv::imread("./model/rsn.bmp");
+    // pcBOX_RECT_FLOAT stBoxRect = {0};
+    // stBoxRect.left = 153.53;
+    // stBoxRect.top = 231.12;
+    // stBoxRect.right = stBoxRect.left + 270.17;
+    // stBoxRect.bottom = stBoxRect.top + 403.95;
+
+    cv::Mat Img = cv::imread("./model/player_1280.bmp");
     pcBOX_RECT_FLOAT stBoxRect = {0};
-    stBoxRect.left = 153.53;
-    stBoxRect.top = 231.12;
-    stBoxRect.right = stBoxRect.left + 270.17;
-    stBoxRect.bottom = stBoxRect.top + 403.95;
+    stBoxRect.left = 825.;
+    stBoxRect.top = 679.;
+    stBoxRect.right = stBoxRect.left + 111.1;
+    stBoxRect.bottom = stBoxRect.top + 244.2;
 
     kps_result_group_t kps_result_group;
 
@@ -544,7 +550,7 @@ int main(int argc, char **argv)
     }
     // stbi_image_free(input_data);
 
-    return 0;
+    // return 0;
   }
 
   /* Create the neural network */
@@ -672,7 +678,7 @@ int main(int argc, char **argv)
   float scale_w = (float)width / img_width;
   float scale_h = (float)height / img_height;
 
-  detect_result_group_t detect_result_group;
+  detect_result_group_float_t detect_result_group;
   std::vector<float> out_scales;
   std::vector<uint32_t> out_zps;
   for (int i = 0; i < io_num.n_output; ++i)
@@ -729,59 +735,119 @@ int main(int argc, char **argv)
   post_process_player_6_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
   // post_process_player_6((uint8_t *)outputs[0].buf, (uint8_t *)outputs[1].buf, (uint8_t *)outputs[2].buf, (uint8_t *)outputs[3].buf, (uint8_t *)outputs[4].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
 
-  // Draw Objects
-  char text[256];
-  const unsigned char blue[] = {0, 0, 255};
-  const unsigned char red[] = {255, 0, 0};
-  const unsigned char white[] = {255, 255, 255};
-  for (int i = 0; i < detect_result_group.count; i++)
   {
-    detect_result_t *det_result = &(detect_result_group.results[i]);
-    sprintf(text, "%s %.2f", det_result->name, det_result->prop);
-    // printf("%s @ (%d %d %d %d) %f\n", det_result->name, det_result->box.left, det_result->box.top,
-    //        det_result->box.right, det_result->box.bottom, det_result->prop);
-    int x1 = det_result->box.left;
-    int y1 = det_result->box.top;
-    int x2 = det_result->box.right;
-    int y2 = det_result->box.bottom;
-    // draw box
-    img.draw_rectangle(x1, y1, x2, y2, red, 1, ~0U);
-    img.draw_text(x1, y1 - 12, text, white);
-    int xc = (x1 + x2) / 2;
-    int yc = (y1 + y2) / 2;
-    int x = det_result->poi.x;
-    int y = det_result->poi.y;
-    float conf = det_result->poi.conf;
-    // printf("pp_x pp_y pp_c --> %d, %d, %f\n", x, y, conf);
-    sprintf(text, "%.2f", conf);
-    img.draw_line(xc, yc, x, y, blue);
-    img.draw_text(xc, yc, text, blue);
+    // Draw Objects
+    char text[256];
+    const unsigned char blue[] = {0, 0, 255};
+    const unsigned char red[] = {255, 0, 0};
+    const unsigned char white[] = {255, 255, 255};
+    for (int i = 0; i < detect_result_group.count; i++)
+    {
+      detect_result_float_t *det_result = &(detect_result_group.results[i]);
+      sprintf(text, "%s %.2f", det_result->name, det_result->prop);
+      // printf("%s @ (%d %d %d %d) %f\n", det_result->name, det_result->box.left, det_result->box.top,
+      //        det_result->box.right, det_result->box.bottom, det_result->prop);
+      float x1 = det_result->box.left;
+      float y1 = det_result->box.top;
+      float x2 = det_result->box.right;
+      float y2 = det_result->box.bottom;
+      // draw box
+      img.draw_rectangle(x1, y1, x2, y2, red, 1, ~0U);
+      img.draw_text(x1, y1 - 12, text, white);
+      float xc = (x1 + x2) / 2;
+      float yc = (y1 + y2) / 2;
+      float x = det_result->poi.x;
+      float y = det_result->poi.y;
+      float conf = det_result->poi.conf;
+      // printf("pp_x pp_y pp_c --> %d, %d, %f\n", x, y, conf);
+      sprintf(text, "%.2f", conf);
+      img.draw_line(xc, yc, x, y, blue);
+      img.draw_text(xc, yc, text, blue);
+    }
+    img.save("./out.bmp");
   }
-  img.save("./out.bmp");
 
-  // Save Parser Results
-  FILE *fid = fopen("npu_parser_results.txt", "w");
-  assert(fid != NULL);
-  for (int i = 0; i < detect_result_group.count; i++)
   {
-    detect_result_t *det_result = &(detect_result_group.results[i]);
-    // printf("%s @ (%d %d %d %d) %f\n", det_result->name, det_result->box.left, det_result->box.top,
-    //        det_result->box.right, det_result->box.bottom, det_result->prop);
-    float x1 = (float)det_result->box.left;
-    float y1 = (float)det_result->box.top;
-    float x2 = (float)det_result->box.right;
-    float y2 = (float)det_result->box.bottom;
-    float xc = (x1 + x2) / 2 / (float)width;
-    float yc = (y1 + y2) / 2 / (float)height;
-    float w = (x2 - x1) / (float)width;
-    float h = (y2 - y1) / (float)height;
-    int x = det_result->poi.x;
-    int y = det_result->poi.y;
-    float conf = det_result->poi.conf;
-    // TODO: auto class id
-    fprintf(fid, "0, %f, %f,  %f, %f, %d, %d, %f, %f\n", xc, yc, w, h, x, y, conf, det_result->prop);
+    // Save Parser Results
+    FILE *fid = fopen("npu_parser_results.txt", "w");
+    assert(fid != NULL);
+    for (int i = 0; i < detect_result_group.count; i++)
+    {
+      detect_result_float_t *det_result = &(detect_result_group.results[i]);
+      // printf("%s @ (%d %d %d %d) %f\n", det_result->name, det_result->box.left, det_result->box.top,
+      //        det_result->box.right, det_result->box.bottom, det_result->prop);
+      float x1 = det_result->box.left;
+      float y1 = det_result->box.top;
+      float x2 = det_result->box.right;
+      float y2 = det_result->box.bottom;
+      float xc = (x1 + x2) / 2 / (float)width;
+      float yc = (y1 + y2) / 2 / (float)height;
+      float w = (x2 - x1) / (float)width;
+      float h = (y2 - y1) / (float)height;
+      int x = det_result->poi.x;
+      int y = det_result->poi.y;
+      float conf = det_result->poi.conf;
+      // TODO: auto class id
+      fprintf(fid, "0, %f, %f,  %f, %f, %d, %d, %f, %f\n", xc, yc, w, h, x, y, conf, det_result->prop);
+    }
+    fclose(fid);
   }
-  fclose(fid);
+
+  {
+    cv::Mat Img = cv::imread("./model/player_1280.bmp");
+    FILE *pFileHandle = fopen("npu_parser_final_results.txt", "w");
+    assert(pFileHandle != NULL);
+    for (int i = 0; i < detect_result_group.count; i++)
+    {
+      detect_result_float_t *det_result = &(detect_result_group.results[i]);
+      float x1 = det_result->box.left;
+      float y1 = det_result->box.top;
+      float x2 = det_result->box.right;
+      float y2 = det_result->box.bottom;
+      float xc = (x1 + x2) / 2 / (float)width;
+      float yc = (y1 + y2) / 2 / (float)height;
+      float w = (x2 - x1) / (float)width;
+      float h = (y2 - y1) / (float)height;
+      int x = det_result->poi.x;
+      int y = det_result->poi.y;
+      float conf = det_result->poi.conf;
+
+      void *resize_buf = malloc(height * width * channel);
+      // unsigned char *p = (unsigned char *) resize_buf;
+
+      // float fXC = (x1 + x2) / 2;
+      // float fYC = (y1 + y2) / 2;
+      float fWE = (x2 - x1) * KPS_W_EXTENTION;
+      float fHE = (y2 - y1) * KPS_H_EXTENTION;
+      pcBOX_RECT_FLOAT stBoxRect = {0};
+      stBoxRect.left = x1;
+      stBoxRect.top = y1;
+      stBoxRect.right = x1 + fWE / 2.;
+      stBoxRect.bottom = y1 + fHE / 2.;
+
+      // stBoxRect.left = 825.;
+      // stBoxRect.top = 679.;
+      // stBoxRect.right = stBoxRect.left + 111.1;
+      // stBoxRect.bottom = stBoxRect.top + 244.2;
+
+      printf("[i] stBoxRect.left, stBoxRect.top, fWE, fHE --> %d, %f, %f, %f, %f \n", i, stBoxRect.left, stBoxRect.top, fWE, fHE);
+      // return 0;
+
+      kps_result_group_t kps_result_group;
+
+      post_process_kps_f16_wrapper(ctx_kps, &Img, stBoxRect, resize_buf, output_attrs, &kps_result_group);
+
+      fprintf(pFileHandle, "0, %f, %f,  %f, %f, %d, %d, %f, %f ", xc, yc, w, h, x, y, conf, det_result->prop);
+      for (int j = 0; j < KPS_KEYPOINT_NUM; j++) {
+        float x = (float) kps_result_group.results->kps[j].x;
+        float y = (float) kps_result_group.results->kps[j].y;
+        float conf = kps_result_group.results->kps[j].conf;
+        fprintf(pFileHandle, "%f,  %f, %f ", x, y, conf);
+      }
+      fprintf(pFileHandle, "\n");
+    }
+    fclose(pFileHandle);
+  }
 
   ret = rknn_outputs_release(ctx, io_num.n_output, outputs);
 

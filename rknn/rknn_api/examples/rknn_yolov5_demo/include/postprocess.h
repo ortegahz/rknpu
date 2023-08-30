@@ -31,6 +31,9 @@
 #define KPS_Y_EXTENTION (0.015 * 9.0)
 #define KPS_W_EXTENTION 1.1
 #define KPS_H_EXTENTION 2.2
+#define KPS_CONF_CALC_SCALE 10.
+#define KPS_CONF_CALC_ALPHA 0.5
+#define KPS_CONF_THRESH 0.4
 
 typedef struct _POI_FLOAT
 {
@@ -68,6 +71,8 @@ typedef struct _detect_result_float_t
     BOX_RECT_FLOAT box;
     float prop;
     POI_FLOAT poi;
+    bool isPlayer;
+    float conf;
 } detect_result_float_t;
 
 typedef struct _detect_result_group_float_t

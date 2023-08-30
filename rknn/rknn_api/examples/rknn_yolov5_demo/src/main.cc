@@ -736,38 +736,6 @@ int main(int argc, char **argv)
   // post_process_player_6((uint8_t *)outputs[0].buf, (uint8_t *)outputs[1].buf, (uint8_t *)outputs[2].buf, (uint8_t *)outputs[3].buf, (uint8_t *)outputs[4].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
 
   {
-    // Draw Objects
-    char text[256];
-    const unsigned char blue[] = {0, 0, 255};
-    const unsigned char red[] = {255, 0, 0};
-    const unsigned char white[] = {255, 255, 255};
-    for (int i = 0; i < detect_result_group.count; i++)
-    {
-      detect_result_float_t *det_result = &(detect_result_group.results[i]);
-      sprintf(text, "%s %.2f", det_result->name, det_result->prop);
-      // printf("%s @ (%d %d %d %d) %f\n", det_result->name, det_result->box.left, det_result->box.top,
-      //        det_result->box.right, det_result->box.bottom, det_result->prop);
-      float x1 = det_result->box.left;
-      float y1 = det_result->box.top;
-      float x2 = det_result->box.right;
-      float y2 = det_result->box.bottom;
-      // draw box
-      img.draw_rectangle(x1, y1, x2, y2, red, 1, ~0U);
-      img.draw_text(x1, y1 - 12, text, white);
-      float xc = (x1 + x2) / 2;
-      float yc = (y1 + y2) / 2;
-      float x = det_result->poi.x;
-      float y = det_result->poi.y;
-      float conf = det_result->poi.conf;
-      // printf("pp_x pp_y pp_c --> %d, %d, %f\n", x, y, conf);
-      sprintf(text, "%.2f", conf);
-      img.draw_line(xc, yc, x, y, blue);
-      img.draw_text(xc, yc, text, blue);
-    }
-    img.save("./out.bmp");
-  }
-
-  {
     // Save Parser Results
     FILE *fid = fopen("npu_parser_results.txt", "w");
     assert(fid != NULL);
@@ -845,8 +813,89 @@ int main(int argc, char **argv)
         fprintf(pFileHandle, "%f,  %f, %f ", x, y, conf);
       }
       fprintf(pFileHandle, "\n");
+
+      // kps_result_group.results->kps[7].x = 917.36; kps_result_group.results->kps[7].y = 763.21; kps_result_group.results->kps[7].conf = 1.1368;
+      // kps_result_group.results->kps[8].x = 839.41; kps_result_group.results->kps[8].y = 765.37; kps_result_group.results->kps[8].conf = 0.99745;
+      // kps_result_group.results->kps[9].x = 911.95; kps_result_group.results->kps[9].y = 772.95; kps_result_group.results->kps[9].conf = 0.97398;
+      // kps_result_group.results->kps[10].x = 864.31; kps_result_group.results->kps[10].y = 768.62; kps_result_group.results->kps[10].conf = 1.0892;
+      // det_result->prop = 0.92078;
+      // fHE = 244.2; fWE = 111.1;
+
+      float fAreaSqrt = sqrt(fHE * fWE);
+
+      printf("fAreaSqrt --> %f \n", fAreaSqrt);
+
+      float fDirRX = kps_result_group.results->kps[10].x - kps_result_group.results->kps[8].x;
+      float fDirRY = kps_result_group.results->kps[10].y - kps_result_group.results->kps[8].y;
+      float fNormR = sqrt(pow(fDirRX, 2) + pow(fDirRY, 2));
+      fDirRX /= fNormR; fDirRY /= fNormR;
+      float fDirLX = kps_result_group.results->kps[9].x - kps_result_group.results->kps[7].x;
+      float fDirLY = kps_result_group.results->kps[9].y - kps_result_group.results->kps[7].y;
+      float fNormL = sqrt(pow(fDirLX, 2) + pow(fDirLY, 2));
+      fDirLX /= fNormL; fDirLY /= fNormL;
+
+      printf("fDirLX, fDirLY --> %f, %f \n", fDirLX, fDirLY);
+      printf("fDirRX, fDirRY --> %f, %f \n", fDirRX, fDirRY);
+
+      float fDirRPX = det_result->poi.x - kps_result_group.results->kps[10].x;
+      float fDirRPY = det_result->poi.y - kps_result_group.results->kps[10].y;
+      float fNormRP = sqrt(pow(fDirRPX, 2) + pow(fDirRPY, 2));
+      fDirRPX /= fNormRP; fDirRPY /= fNormRP;
+      printf("fDirRPX, fDirRPY --> %f, %f \n", fDirRPX, fDirRPY);
+      float fWR = 2. - (fDirRPX * fDirRX + fDirRPY * fDirRY);
+      float fDistR = fNormRP * fWR / fAreaSqrt * KPS_CONF_CALC_SCALE;
+      float fDirLPX = det_result->poi.x - kps_result_group.results->kps[9].x;
+      float fDirLPY = det_result->poi.y - kps_result_group.results->kps[9].y;
+      float fNormLP = sqrt(pow(fDirLPX, 2) + pow(fDirLPY, 2));
+      fDirLPX /= fNormLP; fDirLPY /= fNormLP;
+      printf("fDirLPX, fDirLPY --> %f, %f \n", fDirLPX, fDirLPY);
+      float fWL = 2. - (fDirLPX * fDirLX + fDirLPY * fDirLY);
+      float fDistL = fNormLP * fWL / fAreaSqrt * KPS_CONF_CALC_SCALE;
+
+      printf("fDistL, fDistR --> %f, %f \n", fDistL, fDistR);
+
+      float fConfKPS = (1. / (fDistL + 1.) * kps_result_group.results->kps[9].conf * det_result->poi.conf + 1. / (fDistR + 1.) * kps_result_group.results->kps[10].conf * det_result->poi.conf) / 2.;
+      printf("fConfKPS --> %f \n", fConfKPS);
+      float fConf = KPS_CONF_CALC_ALPHA * det_result->prop + (1 - KPS_CONF_CALC_ALPHA) * fConfKPS;
+      printf("fConf --> %f \n", fConf);
+      // return 0;
+      det_result->conf = fConf;
+      if (fConf > KPS_CONF_THRESH) {
+        det_result->isPlayer = true;
+      }
     }
     fclose(pFileHandle);
+  }
+
+  {
+    // Draw Objects
+    char text[256];
+    const unsigned char blue[] = {0, 0, 255};
+    const unsigned char red[] = {255, 0, 0};
+    const unsigned char yellow[] = {255, 255, 0};
+    const unsigned char white[] = {255, 255, 255};
+    for (int i = 0; i < detect_result_group.count; i++)
+    {
+      detect_result_float_t *det_result = &(detect_result_group.results[i]);
+      sprintf(text, "%s %.2f", det_result->name, det_result->conf);
+      // printf("%s @ (%d %d %d %d) %f\n", det_result->name, det_result->box.left, det_result->box.top,
+      //        det_result->box.right, det_result->box.bottom, det_result->prop);
+      float x1 = det_result->box.left;
+      float y1 = det_result->box.top;
+      float x2 = det_result->box.right;
+      float y2 = det_result->box.bottom;
+      bool isPlayer = det_result->isPlayer;
+      // draw box
+      if (isPlayer) {
+        img.draw_rectangle(x1, y1, x2, y2, red, 1, ~0U);
+      }
+      else {
+        img.draw_rectangle(x1, y1, x2, y2, yellow, 1, ~0U);
+      }
+      
+      img.draw_text(x1, y1 - 12, text, white);
+    }
+    img.save("./out.bmp");
   }
 
   ret = rknn_outputs_release(ctx, io_num.n_output, outputs);

@@ -69,7 +69,7 @@ int post_process(uint8_t *input0, uint8_t *input1, uint8_t *input2, int model_in
 
 int post_process_acfree_6(uint8_t* input0, uint8_t* input1, uint8_t* input2, uint8_t* input3, uint8_t* input4, uint8_t* input5, uint8_t* input6, uint8_t* input7, int model_in_h, int model_in_w, float conf_threshold,
                  float nms_threshold, float scale_w, float scale_h, std::vector<uint32_t>& qnt_zps,
-                 std::vector<float>& qnt_scales, detect_result_group_t* group);
+                 std::vector<float>& qnt_scales, detect_result_group_float_t* group);
 
 float deqnt_affine_to_f32(uint8_t qnt, uint32_t zp, float scale);
 

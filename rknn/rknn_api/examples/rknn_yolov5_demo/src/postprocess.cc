@@ -596,7 +596,7 @@ int post_process_acfree_6_f16(uint16_t* input0, uint16_t* input1, uint16_t* inpu
 
 int post_process_acfree_6(uint8_t* input0, uint8_t* input1, uint8_t* input2, uint8_t* input3, uint8_t* input4, uint8_t* input5, uint8_t* input6, uint8_t* input7, int model_in_h, int model_in_w, float conf_threshold,
                  float nms_threshold, float scale_w, float scale_h, std::vector<uint32_t>& qnt_zps,
-                 std::vector<float>& qnt_scales, detect_result_group_t* group)
+                 std::vector<float>& qnt_scales, detect_result_group_float_t* group)
 {
   static int init = -1;
   if (init == -1) {
@@ -681,10 +681,10 @@ int post_process_acfree_6(uint8_t* input0, uint8_t* input1, uint8_t* input2, uin
     int   id       = classId[n];
     float obj_conf = objProbs[i];
 
-    group->results[last_count].box.left   = (int)(clamp(x1, 0, model_in_w) / scale_w);
-    group->results[last_count].box.top    = (int)(clamp(y1, 0, model_in_h) / scale_h);
-    group->results[last_count].box.right  = (int)(clamp(x2, 0, model_in_w) / scale_w);
-    group->results[last_count].box.bottom = (int)(clamp(y2, 0, model_in_h) / scale_h);
+    group->results[last_count].box.left   = clamp(x1, 0, model_in_w) / scale_w;
+    group->results[last_count].box.top    = clamp(y1, 0, model_in_h) / scale_h;
+    group->results[last_count].box.right  = clamp(x2, 0, model_in_w) / scale_w;
+    group->results[last_count].box.bottom = clamp(y2, 0, model_in_h) / scale_h;
     group->results[last_count].prop       = obj_conf;
     char* label                           = labels[id];
     strncpy(group->results[last_count].name, label, OBJ_NAME_MAX_SIZE);

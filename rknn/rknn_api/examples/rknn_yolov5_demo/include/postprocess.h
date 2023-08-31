@@ -10,6 +10,28 @@
 #define BOX_THRESH        0.4
 #define PROP_BOX_SIZE     (5+OBJ_CLASS_NUM)
 
+typedef struct _BOX_RECT_FLOAT
+{
+    float left;
+    float right;
+    float top;
+    float bottom;
+} BOX_RECT_FLOAT;
+
+typedef struct __detect_result_float_t
+{
+    char name[OBJ_NAME_MAX_SIZE];
+    BOX_RECT_FLOAT box;
+    float prop;
+} detect_result_float_t;
+
+typedef struct _detect_result_group_float_t
+{
+    int id;
+    int count;
+    detect_result_float_t results[OBJ_NUMB_MAX_SIZE];
+} detect_result_group_float_t;
+
 typedef struct _BOX_RECT
 {
     int left;
@@ -32,7 +54,7 @@ typedef struct _detect_result_group_t
     detect_result_t results[OBJ_NUMB_MAX_SIZE];
 } detect_result_group_t;
 
-int post_process_acfree_6_f16(uint16_t* input0, uint16_t* input1, uint16_t* input2, uint16_t* input3, uint16_t* input4, uint16_t* input5, uint16_t* input6, uint16_t* input7, int model_in_h, int model_in_w, float conf_threshold, float nms_threshold, float scale_w, float scale_h, detect_result_group_t* group);
+int post_process_acfree_6_f16(uint16_t* input0, uint16_t* input1, uint16_t* input2, uint16_t* input3, uint16_t* input4, uint16_t* input5, uint16_t* input6, uint16_t* input7, int model_in_h, int model_in_w, float conf_threshold, float nms_threshold, float scale_w, float scale_h, detect_result_group_float_t* group);
 
 int post_process_acfree_f16(uint16_t* input0, uint16_t* input1, uint16_t* input2, uint16_t* input3, uint16_t* input4, uint16_t* input5, int model_in_h, int model_in_w, float conf_threshold, float nms_threshold, float scale_w, float scale_h, detect_result_group_t* group);
 

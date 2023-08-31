@@ -41,7 +41,7 @@
 #include "rknn_api.h"
 
 #define PERF_WITH_POST 0
-#define SAVE_F16_OUTPUTS 0
+#define SAVE_F16_OUTPUTS 1
 
 using namespace cimg_library;
 /*-------------------------------------------
@@ -457,7 +457,7 @@ int main(int argc, char** argv)
   float scale_w = (float)width / img_width;
   float scale_h = (float)height / img_height;
 
-  detect_result_group_t detect_result_group;
+  detect_result_group_float_t detect_result_group;
   std::vector<float>    out_scales;
   std::vector<uint32_t> out_zps;
   for (int i = 0; i < io_num.n_output; ++i) {
@@ -504,8 +504,8 @@ int main(int argc, char** argv)
   //              box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
   // post_process_acfree((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, (uint8_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
   // post_process_acfree_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, (uint16_t*)outputs[5].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
-  // post_process_acfree_6_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, (uint16_t*)outputs[5].buf, (uint16_t*)outputs[6].buf, (uint16_t*)outputs[7].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
-  post_process_acfree_6((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, (uint8_t*)outputs[5].buf, (uint8_t*)outputs[6].buf, (uint8_t*)outputs[7].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
+  post_process_acfree_6_f16((uint16_t*)outputs[0].buf, (uint16_t*)outputs[1].buf, (uint16_t*)outputs[2].buf, (uint16_t*)outputs[3].buf, (uint16_t*)outputs[4].buf, (uint16_t*)outputs[5].buf, (uint16_t*)outputs[6].buf, (uint16_t*)outputs[7].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, &detect_result_group);
+  // post_process_acfree_6((uint8_t*)outputs[0].buf, (uint8_t*)outputs[1].buf, (uint8_t*)outputs[2].buf, (uint8_t*)outputs[3].buf, (uint8_t*)outputs[4].buf, (uint8_t*)outputs[5].buf, (uint8_t*)outputs[6].buf, (uint8_t*)outputs[7].buf, height, width, box_conf_threshold, nms_threshold, scale_w, scale_h, out_zps, out_scales, &detect_result_group);
 
   // Draw Objects
   char                text[256];
@@ -513,14 +513,14 @@ int main(int argc, char** argv)
   const unsigned char red[]  = {255, 0, 0};
   const unsigned char white[] = {255, 255, 255};
   for (int i = 0; i < detect_result_group.count; i++) {
-    detect_result_t* det_result = &(detect_result_group.results[i]);
+    detect_result_float_t* det_result = &(detect_result_group.results[i]);
     sprintf(text, "%s %.2f", det_result->name, det_result->prop);
     // printf("%s @ (%d %d %d %d) %f\n", det_result->name, det_result->box.left, det_result->box.top,
     //        det_result->box.right, det_result->box.bottom, det_result->prop);
-    int x1 = det_result->box.left;
-    int y1 = det_result->box.top;
-    int x2 = det_result->box.right;
-    int y2 = det_result->box.bottom;
+    float x1 = det_result->box.left;
+    float y1 = det_result->box.top;
+    float x2 = det_result->box.right;
+    float y2 = det_result->box.bottom;
     // draw box
     img.draw_rectangle(x1, y1, x2, y2, red, 1, ~0U);
     img.draw_text(x1, y1 - 12, text, white);
@@ -531,7 +531,7 @@ int main(int argc, char** argv)
   FILE * fid = fopen("npu_parser_results.txt", "w");
   assert(fid != NULL);
   for (int i = detect_result_group.count - 1; i >= 0; i--) {
-    detect_result_t* det_result = &(detect_result_group.results[i]);
+    detect_result_float_t* det_result = &(detect_result_group.results[i]);
     // printf("%s @ (%d %d %d %d) %f\n", det_result->name, det_result->box.left, det_result->box.top,
     //        det_result->box.right, det_result->box.bottom, det_result->prop);
     float x1 = (float) det_result->box.left;

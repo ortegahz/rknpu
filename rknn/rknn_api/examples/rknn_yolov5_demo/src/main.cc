@@ -444,7 +444,7 @@ int main(int argc, char **argv)
     void *resize_buf = malloc(height * width * channel);
     // unsigned char *p = (unsigned char *) resize_buf;
 
-    // cv::Mat Img = cv::imread("./model/rsn.bmp");
+    // cv::Mat Img = cv::imread("./model/kps.bmp");
     // pcBOX_RECT_FLOAT stBoxRect = {0};
     // stBoxRect.left = 153.53;
     // stBoxRect.top = 231.12;

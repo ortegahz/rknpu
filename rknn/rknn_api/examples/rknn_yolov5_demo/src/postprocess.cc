@@ -1328,7 +1328,7 @@ int post_process_acfree_6_f16(uint16_t* input0, uint16_t* input1, uint16_t* inpu
   return 0;
 }
 
-int post_process_player_6(uint8_t* input0, uint8_t* input1, uint8_t* input2, uint8_t* input3, uint8_t* input4, int model_in_h, int model_in_w, float conf_threshold, float nms_threshold, float scale_w, float scale_h, std::vector<uint32_t>& qnt_zps, std::vector<float>& qnt_scales, detect_result_group_t* group)
+int post_process_player_6(uint8_t* input0, uint8_t* input1, uint8_t* input2, uint8_t* input3, uint8_t* input4, int model_in_h, int model_in_w, float conf_threshold, float nms_threshold, float scale_w, float scale_h, std::vector<uint32_t>& qnt_zps, std::vector<float>& qnt_scales, detect_result_group_float_t* group)
 {
   static int init = -1;
   if (init == -1) {
@@ -1417,13 +1417,13 @@ int post_process_player_6(uint8_t* input0, uint8_t* input1, uint8_t* input2, uin
     float poi_y       = pois[n * 3 + 1];
     float poi_c       = pois[n * 3 + 2];
 
-    group->results[last_count].box.left   = (int)(clamp(x1, 0, model_in_w) / scale_w);
-    group->results[last_count].box.top    = (int)(clamp(y1, 0, model_in_h) / scale_h);
-    group->results[last_count].box.right  = (int)(clamp(x2, 0, model_in_w) / scale_w);
-    group->results[last_count].box.bottom = (int)(clamp(y2, 0, model_in_h) / scale_h);
+    group->results[last_count].box.left   = clamp(x1, 0, model_in_w) / scale_w;
+    group->results[last_count].box.top    = clamp(y1, 0, model_in_h) / scale_h;
+    group->results[last_count].box.right  = clamp(x2, 0, model_in_w) / scale_w;
+    group->results[last_count].box.bottom = clamp(y2, 0, model_in_h) / scale_h;
     group->results[last_count].prop       = obj_conf;
-    group->results[last_count].poi.x = int(poi_x / scale_w);
-    group->results[last_count].poi.y = int(poi_y / scale_h);
+    group->results[last_count].poi.x = poi_x / scale_w;
+    group->results[last_count].poi.y = poi_y / scale_h;
     group->results[last_count].poi.conf = poi_c;
     char* label                           = labels[id];
     strncpy(group->results[last_count].name, label, OBJ_NAME_MAX_SIZE);

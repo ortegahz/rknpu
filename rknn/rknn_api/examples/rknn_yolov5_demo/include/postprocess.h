@@ -124,7 +124,7 @@ int post_process_kps(t *pt8Input, std::vector<uint32_t> &qnt_zps, std::vector<fl
 
 int post_process_kps_f16(uint16_t *pu16Input, float fCenterX, float fCenterY, float fScaleWT, float fScaleHT, kps_result_group_t *group);
 
-int post_process_player_6(uint8_t* input0, uint8_t* input1, uint8_t* input2, uint8_t* input3, uint8_t* input4, int model_in_h, int model_in_w, float conf_threshold, float nms_threshold, float scale_w, float scale_h, std::vector<uint32_t>& qnt_zps, std::vector<float>& qnt_scales, detect_result_group_t* group);
+int post_process_player_6(uint8_t* input0, uint8_t* input1, uint8_t* input2, uint8_t* input3, uint8_t* input4, int model_in_h, int model_in_w, float conf_threshold, float nms_threshold, float scale_w, float scale_h, std::vector<uint32_t>& qnt_zps, std::vector<float>& qnt_scales, detect_result_group_float_t* group);
 
 int post_process_player_6_f16(uint16_t* input0, uint16_t* input1, uint16_t* input2, uint16_t* input3, uint16_t* input4, int model_in_h, int model_in_w, float conf_threshold, float nms_threshold, float scale_w, float scale_h, detect_result_group_float_t* group);
 
